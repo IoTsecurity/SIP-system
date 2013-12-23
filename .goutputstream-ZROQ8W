@@ -1,0 +1,8 @@
+/******************** (C) COPYRIGHT 2012 CSENN *********************************
+* File Name          : csenn_eXosip2.c
+* Author             : Kira Jackson
+* Date               : 2012/12/20
+**************************************************************START OF FILE****/
+#include "csenn_eXosip2.h"
+
+int g_register_id  = 0;/*
