@@ -5,17 +5,14 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../csenn_eXosip2.c \
-../interface.c \
 ../main.c 
 
 OBJS += \
 ./csenn_eXosip2.o \
-./interface.o \
 ./main.o 
 
 C_DEPS += \
 ./csenn_eXosip2.d \
-./interface.d \
 ./main.d 
 
 

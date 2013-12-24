@@ -20,7 +20,7 @@ void csenn_eXosip_processEvent(void);/*消息循环处理*/
 void csenn_eXosip_launch(void);/*启动并注册eXosip*/
 
 //int csenn_eXosip_sendinvite(char * to,char * sdpMessage, char ** responseSdp,sessionId *id);//by jzw
-int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * responseSdp);
+int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char ** responseSdp);
 int csenn_eXosip_bye(sessionId id);
 
 /*初始化eXosip*/
@@ -1116,7 +1116,7 @@ void csenn_eXosip_processEvent(void)
 	}
 }
 
-int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * responseSdp)
+int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char ** responseSdp)
 {
 	osip_message_t *invite;
 	int port=5070;
@@ -1192,8 +1192,8 @@ int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * resp
 	          osip_body_t *body;
 	          osip_message_get_body (je->response, 0, &body);
 	          //printf ("I get the msg is: %s\n", body->body);
-	          //(*responseSdp)=(char *)malloc (body->length*sizeof(char));
-	          snprintf (responseSdp, body->length,"%s", body->body);
+	          (*responseSdp)=(char *)malloc (body->length*sizeof(char));
+	          snprintf ((*responseSdp), body->length,"%s", body->body);
 
 	           //response a ack
 	          osip_message_t *ack = NULL;

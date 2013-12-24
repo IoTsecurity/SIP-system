@@ -6,7 +6,7 @@
  */
 
 #include "csenn_eXosip2.h"
-#include "interface.c"
+#include "interface.h"
 
 #ifndef UAC_H
 #define UAC_H
@@ -37,13 +37,13 @@ int uac_init()
 			return 0;
 }
 
-int uas_register()
+int uac_register()
 {
 	csenn_eXosip_register(3600);
 	return 0;
 }
 
-int uas_invite(sessionId * inviteId,char *to,char * sdp_message,char * responseSdp)
+int uac_invite(sessionId * inviteId,char *to,char * sdp_message,char * responseSdp)
 {
 	//interface 1: do something in playSdp and inviteIp, and open the video transportation
 			//char playSdp[4096];
@@ -61,7 +61,7 @@ int uas_invite(sessionId * inviteId,char *to,char * sdp_message,char * responseS
 
 			//char *responseSdp;
 			//sessionId inviteId;
-			csenn_eXosip_invit(inviteId,to,sdp_message,&responseSdp);
+			csenn_eXosip_invit(inviteId,to,sdp_message,responseSdp);
 
 			//interface 2: do something with responseSdp ;
 			//printf("main return sdp:%s \n",responseSdp);
@@ -69,7 +69,7 @@ int uas_invite(sessionId * inviteId,char *to,char * sdp_message,char * responseS
 	return 0;
 }
 
-int uas_bye(sessionId inviteId)
+int uac_bye(sessionId inviteId)
 {
 	return csenn_eXosip_bye(inviteId);
 
@@ -80,7 +80,7 @@ int uas_bye(sessionId inviteId)
 	//return 0;
 	}
 
-int uas_send_info(sessionId inviteId)
+int uac_send_info(sessionId inviteId)
 {
 	osip_message_t *info;
 	char info_body[1000];
@@ -98,7 +98,7 @@ int uas_send_info(sessionId inviteId)
 	return i;
 }
 
-int uas_send_message(sessionId inviteId,char * type ,char * type_info,char * message_str)
+int uac_send_message(sessionId inviteId,char * type ,char * type_info,char * message_str)
 {
 	osip_message_t *message;
 	char message_body[1000];

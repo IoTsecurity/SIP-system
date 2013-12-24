@@ -1,18 +1,94 @@
 #include "csenn_eXosip2.h"
-
+#include <pthread.h>
+#include "interface.h"
 #ifndef UAS_H
 #define UAS_H
 
-int invite_handle(eXosip_event_t *g_event)
+int handle_invite(eXosip_event_t * g_event)
 {
+	int length;
+	char * message;
+	//osip_message_to_str(g_event->request, &message, &length);
+	osip_body_t *body;
+	osip_message_get_body (g_event->request, 0, &body);
+	message=(char *)malloc (body->length*sizeof(char));
+	snprintf (message, body->length,"%s", body->body);
+
+	//interface do somthing with the sdp
+	//function_run(uas_handle_invite_sdp,message);
+	uas_function_run(uas_handle_invite_sdp,message);
+	//end interface
+
+
+	if(MSG_IS_INVITE(g_event->request))/*使用INVITE方法的请求*/
+	{
+		/*实时视音频点播*/
+		/*历史视音频回放*/
+		/*视音频文件下载*/
+		osip_message_t *asw_msg = NULL;/*请求的确认型应答*/
+
+
+		eXosip_lock();
+		if(0 != eXosip_call_build_answer(g_event->tid, 200, &asw_msg))/*Build default Answer for request*/
+		{
+			eXosip_call_send_answer(g_event->tid, 603, NULL);
+			eXosip_unlock();
+			printf("eXosip_call_build_answer error!\r\n");
+			return -1;
+			}
+		eXosip_unlock();
+
+		char sdp_body[1024];
+		//char sdp_body[4096];
+		//memset(sdp_body, 0, 4096);
+		//printf("<MSG_IS_INVITE>\r\n");
+
+		//interface get sdp
+		uas_function_run(uas_get_invite_sdp,sdp_body);
+		//end interface
+
+		eXosip_lock();
+		osip_message_set_body(asw_msg, sdp_body, strlen(sdp_body));/*设置SDP消息体*/
+		osip_message_set_content_type(asw_msg, "application/sdp");
+		eXosip_call_send_answer(g_event->tid, 200, asw_msg);/*按照规则回复200OK with SDP*/
+		printf("eXosip_call_send_answer success!\r\n");
+		eXosip_unlock();
+
+		//interface get sdp
+		uas_function_run(uas_start_transport,NULL);
+		//end interface
+	}
 	return 0;
+}
+
+int handle_message(eXosip_event_t * g_event)
+{
+	osip_body_t *msg_body = NULL;
+	osip_message_t *g_answer = NULL;/*请求的确认型应答*/
+
+	//printf("<MSG_IS_INFO>\r\n");
+	osip_message_get_body(g_event->request, 0, &msg_body);
+	if(NULL != msg_body)
+	{
+		eXosip_call_build_answer(g_event->tid, 200, &g_answer);/*Build default Answer for request*/
+		eXosip_call_send_answer(g_event->tid, 200, g_answer);/*按照规则回复200OK*/
+		printf("eXosip_call_send_answer success!\r\n");
+		//csenn_eXosip_paraseInfoBody(g_event);/*解析INFO的RTSP消息体*/
+
+		char * message;
+		osip_body_t *body;
+		osip_message_get_body (g_event->request, 0, &body);
+		message=(char *)malloc (body->length*sizeof(char));
+		snprintf (message, body->length,"%s", body->body);
+		//interface handle the message
+	}
 }
 
 void uas_eXosip_processEvent(void)
 {
 	eXosip_event_t *g_event  = NULL;/*消息事件*/
 	osip_message_t *g_answer = NULL;/*请求的确认型应答*/
-	pid_t pid;//thread id
+
 	while (1)
 	{
 /*等待新消息的到来*/
@@ -25,7 +101,7 @@ void uas_eXosip_processEvent(void)
 		{
 			continue;
 		}
-		csenn_eXosip_printEvent(g_event);
+		//csenn_eXosip_printEvent(g_event);
 /*处理感兴趣的消息*/
 		switch (g_event->type)
 		{
@@ -63,65 +139,8 @@ void uas_eXosip_processEvent(void)
 			case EXOSIP_CALL_INVITE:/*INVITE*/
 			{
 				printf("\r\n<EXOSIP_CALL_INVITE>\r\n");
-				if(pid=fork()<0)
-				{
-					printf("create thread error\n");
-				}
-				else if(pid==0)
-				{
-					//child thread code
-					invite_handle(g_event);
-				}
-				else
-				{
-					//father thread code
-				}
 
-				if(0&MSG_IS_INVITE(g_event->request))/*使用INVITE方法的请求*/
-				{
-					/*实时视音频点播*/
-					/*历史视音频回放*/
-					/*视音频文件下载*/
-					osip_message_t *asw_msg = NULL;/*请求的确认型应答*/
-					char sdp_body[4096];
-
-					memset(sdp_body, 0, 4096);
-					printf("<MSG_IS_INVITE>\r\n");
-
-					eXosip_lock();
-					if(0 != eXosip_call_build_answer(g_event->tid, 200, &asw_msg))/*Build default Answer for request*/
-					{
-						eXosip_call_send_answer(g_event->tid, 603, NULL);
-						eXosip_unlock();
-						printf("eXosip_call_build_answer error!\r\n");
-						break;
-					}
-					eXosip_unlock();
-					snprintf(sdp_body, 4096, "v=0\r\n"/*协议版本*/
-											 "o=%s 0 0 IN IP4 %s\r\n"/*会话源*//*用户名/会话ID/版本/网络类型/地址类型/地址*/
-											 "s=Embedded IPC\r\n"/*会话名*/
-											 "c=IN IP4 %s\r\n"/*连接信息*//*网络类型/地址信息/多点会议的地址*/
-											 "t=0 0\r\n"/*时间*//*开始时间/结束时间*/
-											 "m=video %s RTP/AVP 96\r\n"/*媒体/端口/传送层协议/格式列表*/
-											 "a=sendonly\r\n"/*收发模式*/
-											 "a=rtpmap:96 H264/90000\r\n"/*净荷类型/编码名/时钟速率*/
-											 "a=username:%s\r\n"
-											 "a=password:%s\r\n"
-											 "y=100000001\r\n"
-											 "f=\r\n",
-											 device_info.ipc_id,
-											 device_info.ipc_ip,
-											 device_info.ipc_ip,
-											 device_info.ipc_port,
-											 device_info.ipc_id,
-											 device_info.ipc_pwd);
-					eXosip_lock();
-					osip_message_set_body(asw_msg, sdp_body, strlen(sdp_body));/*设置SDP消息体*/
-					osip_message_set_content_type(asw_msg, "application/sdp");
-					eXosip_call_send_answer(g_event->tid, 200, asw_msg);/*按照规则回复200OK with SDP*/
-					printf("eXosip_call_send_answer success!\r\n");
-					eXosip_unlock();
-				}
+				handle_invite(g_event);
 			}
 			break;
 			case EXOSIP_CALL_ACK:/*ACK*/
@@ -172,19 +191,9 @@ void uas_eXosip_processEvent(void)
 			{
 				/*历史视音频回放*/
 				printf("\r\n<EXOSIP_CALL_MESSAGE_NEW>\r\n");
-				if(MSG_IS_INFO(g_event->request))
+				if(MSG_IS_INFO(g_event->request)||MSG_IS_MESSAGE(g_event->request))//identify the info package
 				{
-					osip_body_t *msg_body = NULL;
-
-					printf("<MSG_IS_INFO>\r\n");
-					osip_message_get_body(g_event->request, 0, &msg_body);
-					if(NULL != msg_body)
-					{
-						eXosip_call_build_answer(g_event->tid, 200, &g_answer);/*Build default Answer for request*/
-						eXosip_call_send_answer(g_event->tid, 200, g_answer);/*按照规则回复200OK*/
-						printf("eXosip_call_send_answer success!\r\n");
-						csenn_eXosip_paraseInfoBody(g_event);/*解析INFO的RTSP消息体*/
-					}
+					handle_message(g_event);
 				}
 			}
 			break;

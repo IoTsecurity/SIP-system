@@ -12,8 +12,6 @@
 #include "csenn_eXosip2.h"
 #include "uac.h"
 #include "uas.h"
-#include "interface.h"
-
 /*
 #include <unistd.h>
 #include <sys/types.h>
@@ -31,18 +29,12 @@
 int main()
 {
 		sessionId inviteId;
-		char send_sdp_data[1024];
-		char recieve_sdp_data[1024];
-		char rtsp_data[1024];
-		struct st_rtsptype rtsptype;
+		char * get_message;
 		uac_init();
 
 		printf("r: regester\n");
 		printf("i: invite\n");
-		printf("n: send info\n");
-		printf("m: send message\n");
 		printf("b: bye\n");
-		printf("s: run as a uas\n");
 
 		char command;
 		//printf ("please input the comand:\n");
@@ -56,33 +48,29 @@ int main()
 			switch (command)
 			{
 				case 'r':
-					uac_register();
+					uas_register();
 					break;
 				case 'i':
-					uac_get_sdp(send_sdp_data);
-					uac_invite(&inviteId,"34020000001310000054@192.168.17.1:5060",//"34020000001310000051@192.168.17.1:5060",
-							send_sdp_data,recieve_sdp_data);
-					uac_handle_sdp(recieve_sdp_data);
-					uac_receive_media();
+					uas_invite(&inviteId,
+							"34020000001310000051@192.168.17.129:5060",
+							"v=0\r\n"
+							"o=josua  0 0 IN IP4 192.168.1.1\r\n"
+							"s=Play\r\n"
+							"c=IN IP4 192.168.1.1\r\n"
+							"t=0 0\r\n"
+							"m=audio 8000 RTP/AVP 0 8 101\r\n",
+							&get_message);
 					break;
 				case 'b':
-					uac_bye(inviteId);
-					uac_close_media();
+					uas_bye(inviteId);
 					break;
-				case 'n':
+				case '1':
 					//uas_send_info(inviteId);
-					rtsptype.rtsp_datatype="PLAY";
-					rtsptype.scale=1;
-					uac_get_rtsp(rtsp_data,&rtsptype);
-					uac_send_message(inviteId,"INFO","Application/MANSRTSP",rtsp_data);
+					uas_send_message(inviteId,"INFO","Application/MANSRTSP","sssss");
 					break;
 				case 'm':
-					//send "EOF" message
-					uac_send_message(inviteId,"MESSAGE","Application/MANSCDP+xml","<?xml version=\"1.0\">\r\n<Notify></Notify>");
+					uas_send_message(inviteId,"MESSAGE","Application/MANSCDP+xml","<?xml version=\"1.0\">\r\n<Notify></Notify>");
 					//uas_send_message(inviteId,"INFO","Application/MANSRTSP","sssss");
-					break;
-				case 's':
-					uas_eXosip_processEvent();
 					break;
 				default:
 					break;
