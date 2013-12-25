@@ -80,8 +80,64 @@ int handle_message(eXosip_event_t * g_event)
 		osip_message_get_body (g_event->request, 0, &body);
 		message=(char *)malloc (body->length*sizeof(char));
 		snprintf (message, body->length,"%s", body->body);
+
 		//interface handle the message
+		uas_function_run(uas_handle_Message,message);
+		//end interface
+
+		free(message);
 	}
+}
+
+int handle_bye(eXosip_event_t * g_event)
+{
+	/*实时视音频点播*/
+					/*历史视音频回放*/
+					/*视音频文件下载*/
+					printf("\r\n<EXOSIP_CALL_CLOSED>\r\n");
+					if(MSG_IS_BYE(g_event->request))
+					{
+						printf("<MSG_IS_BYE>\r\n");
+						if((0 != g_did_realPlay)&&(g_did_realPlay == g_event->did))/*实时视音频点播*/
+						{
+							/*关闭：实时视音频点播*/
+							printf("realPlay closed success!\r\n");
+
+							//interface stop transport
+							uas_function_run(uas_stop_transport,NULL);
+							//end interface
+
+							g_did_realPlay = 0;
+						}
+						else if((0 != g_did_backPlay)&&(g_did_backPlay == g_event->did))/*历史视音频回放*/
+						{
+							/*关闭：历史视音频回放*/
+							printf("backPlay closed success!\r\n");
+
+							//interface stop transport
+							uas_function_run(uas_stop_transport,NULL);
+							//end interface
+
+							g_did_backPlay = 0;
+						}
+						else if((0 != g_did_fileDown)&&(g_did_fileDown == g_event->did))/*视音频文件下载*/
+						{
+							/*关闭：视音频文件下载*/
+							printf("fileDown closed success!\r\n");
+
+							//interface stop transport
+							uas_function_run(uas_stop_transport,NULL);
+							//end interface
+
+							g_did_fileDown = 0;
+						}
+						if((0 != g_call_id)&&(0 == g_did_realPlay)&&(0 == g_did_backPlay)&&(0 == g_did_fileDown))/*设置全局INVITE连接ID*/
+						{
+							printf("call closed success!\r\n");
+							g_call_id = 0;
+						}
+					}
+	return 0;
 }
 
 void uas_eXosip_processEvent(void)
@@ -154,37 +210,7 @@ void uas_eXosip_processEvent(void)
 			break;
 			case EXOSIP_CALL_CLOSED:/*BEY*/
 			{
-				/*实时视音频点播*/
-				/*历史视音频回放*/
-				/*视音频文件下载*/
-				printf("\r\n<EXOSIP_CALL_CLOSED>\r\n");
-				if(MSG_IS_BYE(g_event->request))
-				{
-					printf("<MSG_IS_BYE>\r\n");
-					if((0 != g_did_realPlay)&&(g_did_realPlay == g_event->did))/*实时视音频点播*/
-					{
-						/*关闭：实时视音频点播*/
-						printf("realPlay closed success!\r\n");
-						g_did_realPlay = 0;
-					}
-					else if((0 != g_did_backPlay)&&(g_did_backPlay == g_event->did))/*历史视音频回放*/
-					{
-						/*关闭：历史视音频回放*/
-						printf("backPlay closed success!\r\n");
-						g_did_backPlay = 0;
-					}
-					else if((0 != g_did_fileDown)&&(g_did_fileDown == g_event->did))/*视音频文件下载*/
-					{
-						/*关闭：视音频文件下载*/
-						printf("fileDown closed success!\r\n");
-						g_did_fileDown = 0;
-					}
-					if((0 != g_call_id)&&(0 == g_did_realPlay)&&(0 == g_did_backPlay)&&(0 == g_did_fileDown))/*设置全局INVITE连接ID*/
-					{
-						printf("call closed success!\r\n");
-						g_call_id = 0;
-					}
-				}
+				handle_bye(g_event);
 			}
 			break;
 			case EXOSIP_CALL_MESSAGE_NEW:/*MESSAGE:INFO*/

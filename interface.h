@@ -153,7 +153,7 @@ int interface_init()
 	uas_start_transport=uas_send_media;
 	uas_handle_Message=uas_handle_rtsp;
 	uas_stop_transport=uas_close_media;
-	uas_get_info=uas_get_message;
+	//uas_get_info=uas_get_message;
 	return 0;
 	}
 
