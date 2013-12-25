@@ -6,6 +6,13 @@
  */
 
 #include "csenn_eXosip2.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
+
 #include "interface.h"
 
 #ifndef UAC_H
@@ -20,10 +27,11 @@ int uac_init()
 			static  char eXosip_server_port[10]         = "5060";
 			static  char eXosip_ipc_id[30]              = "34020000001180000002";
 			static  char eXosip_ipc_pwd[20]             = "12345678";
-			static  char eXosip_ipc_ip[20]              = "192.168.17.128";
+			static  char eXosip_ipc_ip[20]              = "192.168.171.128";
 			static  char eXosip_ipc_port[10]            = "5060";
 
 			device_info.server_id           = eXosip_server_id;
+			//getlocalip(eXosip_ipc_ip);
 			device_info.server_ip           = eXosip_server_ip;
 			device_info.server_port         = eXosip_server_port;
 			device_info.ipc_id              = eXosip_ipc_id;
@@ -117,4 +125,55 @@ int uac_send_message(sessionId inviteId,char * type ,char * type_info,char * mes
 
 	return i;
 }
+
+//获取地址
+//返回IP地址字符串
+int getlocalip(char* outip)
+{
+    int i=0;
+    int sockfd;
+    struct ifconf ifconf;
+    char *buf = (char*)malloc(512);
+    struct ifreq *ifreq;
+    char* ip;
+
+    //初始化ifconf
+    ifconf.ifc_len = 512;
+    ifconf.ifc_buf = buf;
+
+    if((sockfd = socket(AF_INET, SOCK_DGRAM, 0))<0)
+    {
+        return -1;
+    }
+    ioctl(sockfd, SIOCGIFCONF, &ifconf);    //获取所有接口信息
+    close(sockfd);
+    //接下来一个一个的获取IP地址
+    ifreq = (struct ifreq*)buf;
+    i = ifconf.ifc_len/sizeof(struct ifreq);
+    char *pos = outip;
+    int count;
+    for(count = 0; (count < 1 && i > 0); i--)
+    {
+        ip = inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr);
+        if(strncmp(ip,"127.0.0.1", 3)==0)  //排除127.x.x.x，继续下一个
+        {
+            ifreq++;
+            continue;
+        }else
+        {
+            printf("%s\n", ip);
+            strcpy(pos,ip);
+            int len = strlen(ip);
+            pos[len] = '\t';
+            pos += len+1;
+            count ++;
+            ifreq++;
+        }
+    }
+    free(buf);
+    return 0;
+
+}
+
+
 #endif
