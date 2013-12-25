@@ -31,7 +31,7 @@ int uac_init()
 			static  char eXosip_ipc_port[10]            = "5060";
 
 			device_info.server_id           = eXosip_server_id;
-			//getlocalip(eXosip_ipc_ip);
+			getlocalip(eXosip_ipc_ip);
 			device_info.server_ip           = eXosip_server_ip;
 			device_info.server_port         = eXosip_server_port;
 			device_info.ipc_id              = eXosip_ipc_id;
