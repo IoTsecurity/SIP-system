@@ -11,7 +11,7 @@
 
 // get sdp, fill in INVITE, send to media server by client
 int uac_get_sdp(char *sdp_data)
-{
+{/*
 	snprintf(sdp_data,1024,
 			"v=0\r\n"
             "o=josua  0 0 IN IP4 192.168.1.1\r\n"
@@ -19,7 +19,19 @@ int uac_get_sdp(char *sdp_data)
 			  "u=34020000001310000054:3\r\n"
             "c=IN IP4 192.168.1.1\r\n"
             "t=11111 22222\r\n"
-            "m=audio 8000 RTP/AVP 0 8 101\r\n");
+            "m=audio 8000 RTP/AVP 0 8 101\r\n");*/
+	snprintf(sdp_data,1024,
+				"v=0 \r\n"
+"o=- 0 0 IN IP4 127.0.0.1 \r\n"
+"s=Play \r\n"
+"c=IN IP4 0.0.0.0 \r\n"
+"t=0 0 \r\n"
+"a=tool:libavformat 55.12.102 \r\n"
+"m=video 0 RTP/AVP 96 \r\n"
+"a=rtpmap:96 H264/90000 \r\n"
+"a=fmtp:96 packetization-mode=1 \r\n"
+"a=control:streamid=0 \r\n"
+);
 	return 0;
 }
 
@@ -27,14 +39,13 @@ int uac_get_sdp(char *sdp_data)
 int uac_handle_sdp(char *sdp_data)
 {
 	return 0;
-
 }
 
 // start request: media receiving process from media server in client
 int uac_receive_media()
 {
-	return 0;
 
+	return 0;
 }
 
 // get rtsp data, fill in INFO for sending to media server by client
@@ -61,6 +72,7 @@ int uac_handle_message(char *message)
 // close media receiving process from media server in client
 int uac_close_media()
 {
+
 	return 0;
 }
 
@@ -98,6 +110,7 @@ int uas_handle_sdp(char *sdp_data)
 // p -> 1024 bytes
 int uas_get_sdp(char *sdp_data)
 {
+	/*
 	snprintf(sdp_data, 1024,
 			"v=0\r\n"
 			"o=%s 0 0 IN IP4 \r\n"
@@ -107,7 +120,19 @@ int uas_get_sdp(char *sdp_data)
 			"m=video  STP/AVP 96\r\n"
 			"a=sendonly\r\n"
 			"a=rtpmap:96 H264/90000\r\n"
-			"f=\r\n");
+			"f=\r\n");*/
+	snprintf(sdp_data,1024,
+					"v=0 \r\n"
+	"o=- 0 0 IN IP4 127.0.0.1 \r\n"
+	"s=Play \r\n"
+	"c=IN IP4 0.0.0.0 \r\n"
+	"t=0 0 \r\n"
+	"a=tool:libavformat 55.12.102 \r\n"
+	"m=video 0 RTP/AVP 96 \r\n"
+	"a=rtpmap:96 H264/90000 \r\n"
+	"a=fmtp:96 packetization-mode=1 \r\n"
+	"a=control:streamid=0 \r\n"
+	);
 
 	return 0;
 }
@@ -126,7 +151,7 @@ int uas_handle_rtsp(char *rtsp_data)
 
 // get MESSAGE for sending to client in media server
 // p -> 1024 bytes
-int uas_get_message(char *message, char *message_type)
+int get_message(char *message, char *message_type)
 {
 	// message_type: "EOF"
 	snprintf(message,1024,

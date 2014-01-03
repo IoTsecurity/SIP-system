@@ -81,6 +81,12 @@ int handle_message(eXosip_event_t * g_event)
 		message=(char *)malloc (body->length*sizeof(char));
 		snprintf (message, body->length,"%s", body->body);
 
+		if(MSG_IS_INFO(g_event->request))
+		//interface handle the message
+		uas_function_run(uas_handle_Message,message);
+		//end interface
+
+		else if(MSG_IS_MESSAGE(g_event->request))
 		//interface handle the message
 		uas_function_run(uas_handle_Message,message);
 		//end interface
@@ -217,7 +223,7 @@ void uas_eXosip_processEvent(void)
 			{
 				/*历史视音频回放*/
 				printf("\r\n<EXOSIP_CALL_MESSAGE_NEW>\r\n");
-				if(MSG_IS_INFO(g_event->request)||MSG_IS_MESSAGE(g_event->request))//identify the info package
+				if(MSG_IS_INFO(g_event->request)||MSG_IS_MESSAGE(g_event->request))//identify the info/message package
 				{
 					handle_message(g_event);
 				}
