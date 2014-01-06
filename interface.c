@@ -8,7 +8,7 @@
 
 //end uac interface
 
-// get sdp, fill in INVITE, send to media server by client
+/*filled by yaoyao*/ // get sdp, fill in INVITE, send to media server by client
 int uac_get_Playsdp(char *sdp_data)
 {/*
 	snprintf(sdp_data,1024,
@@ -34,13 +34,13 @@ int uac_get_Playsdp(char *sdp_data)
 	return 0;
 }
 
-// handle sdp received from media server in client
+/*filled by yaoyao*/ // handle sdp received from media server in client
 int uac_handle_Playsdp(char *sdp_data)
 {
 	return 0;
 }
 
-// start request: media receiving process from media server in client
+/*filled by yaoyao*/ // start request: media receiving process from media server in client
 int uac_receive_Playmedia()
 {
 
@@ -62,7 +62,7 @@ int uac_handle_message(char *message)
 	return 0;
 }
 
-// close media receiving process from media server in client
+/*filled by yaoyao*/ // close media receiving process from media server in client
 int uac_close_Playmedia()
 {
 
@@ -80,7 +80,7 @@ int uas_function_run(funcP fun_name,void(*arg))
 	return 0;
 	}
 
-// handle sdp data via INVITE received from client in media server
+/*filled by yaoyao*/ // handle sdp data via INVITE received from client in media server
 int uas_handle_Playsdp(char *sdp_data)
 {
 	//
@@ -89,8 +89,8 @@ int uas_handle_Playsdp(char *sdp_data)
 	return 0;
 	}
 
-// get sdp data for sending to client in media server
-// p -> 1024 bytes
+/*filled by yaoyao*/ // get sdp data for sending to client in media server
+/*filled by yaoyao*/ // p -> 1024 bytes
 int uas_get_Playsdp(char *sdp_data)
 {
 	/*
@@ -120,7 +120,7 @@ int uas_get_Playsdp(char *sdp_data)
 	return 0;
 }
 
-// start response: media sending process to client in media server
+/*filled by yaoyao*/ // start response: media sending process to client in media server
 int uas_send_Playmedia()
 {
 	return 0;
@@ -148,7 +148,7 @@ int get_message(char *message, char *message_type)
 	return 0;
 }
 
-// close media sending process to client in media server
+/*filled by yaoyao*/ // close media sending process to client in media server
 int uas_close_Playmedia()
 {
 	return 0;

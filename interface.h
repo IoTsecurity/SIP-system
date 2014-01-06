@@ -15,16 +15,16 @@
 // handle sdp received from media server in client
 //int uac_handle_sdp(char *sdp_data);
 
-/*1.fill by yaoyao*/ // get sdp, fill in INVITE, send to media server by client by Play way
+/*filled by yaoyao*/ // get sdp, fill in INVITE, send to media server by client by Play way
 int uac_get_Playsdp(char *sdp_data);
 
-/*2.fill by yaoyao*/ // handle sdp received from media server in client by Play way
+/*filled by yaoyao*/ // handle sdp received from media server in client by Play way
 int uac_handle_Playsdp(char *sdp_data);
 
-/*3.fill by yaoyao*/ // start request: media receiving process from media server in client
+/*filled by yaoyao*/ // start request: media receiving process from media server in client
 int uac_receive_Playmedia();
 
-/*4.fill by yaoyao*/ // close media receiving process from media server in client
+/*filled by yaoyao*/ // close media receiving process from media server in client
 int uac_close_Playmedia();
 
 // get rtsp data, fill in INFO for sending to media server by client
@@ -57,17 +57,17 @@ funcP uas_stop_transport;		//0
 funcP uas_get_info;				//char *message, char *message_type
 									//get info data
 
-/*fill by yaoyao*/// handle sdp data via INVITE received from client in media server
+/*filled by yaoyao*/ // handle sdp data via INVITE received from client in media server
 int uas_handle_Playsdp(char *sdp_data);
 
-/*fill by yaoyao*/// get sdp data for sending to client in media server
-/*fill by yaoyao*/// p -> 1024 bytes
+/*filled by yaoyao*/ // get sdp data for sending to client in media server
+/*filled by yaoyao*/ // p -> 1024 bytes
 int uas_get_Playsdp(char *sdp_data);
 
-/*fill by yaoyao*/// start response: media sending process to client in media server
+/*filled by yaoyao*/ // start response: media sending process to client in media server
 int uas_send_Playmedia();
 
-/*fill by yaoyao*/// close media sending process to client in media server
+/*filled by yaoyao*/ // close media sending process to client in media server
 int uas_close_Playmedia();
 
 int uas_function_run(funcP fun_name,void(*arg));
