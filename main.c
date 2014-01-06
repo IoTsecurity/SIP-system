@@ -45,6 +45,7 @@ int main()
 		printf("m: send message\n");
 		printf("b: bye\n");
 		printf("s: run as a uas\n");
+		printf("e: exit\n");
 
 		char command;
 		//printf ("please input the comand:\n");
@@ -86,6 +87,9 @@ int main()
 					break;
 				case 's':
 					uas_eXosip_processEvent();
+					break;
+				case 'e':
+					exit(1);
 					break;
 				default:
 					break;
