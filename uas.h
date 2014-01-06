@@ -54,9 +54,7 @@ int handle_invite(eXosip_event_t * g_event)
 		printf("eXosip_call_send_answer success!\r\n");
 		eXosip_unlock();
 
-		//interface get sdp
-		uas_function_run(uas_start_transport,NULL);
-		//end interface
+
 	}
 	return 0;
 }
@@ -146,6 +144,50 @@ int handle_bye(eXosip_event_t * g_event)
 	return 0;
 }
 
+/*解析INVITE的SDP消息体，同时保存全局INVITE连接ID和全局会话ID*/
+void uas_eXosip_paraseInviteBody(eXosip_event_t *p_event)
+{
+	sdp_message_t *sdp_msg = NULL;
+	char *media_sever_ip   = NULL;
+	char *media_sever_port = NULL;
+
+	sdp_msg = eXosip_get_remote_sdp(p_event->did);
+	if (sdp_msg == NULL)
+	{
+		printf("eXosip_get_remote_sdp NULL!\r\n");
+		return;
+	}
+	printf("eXosip_get_remote_sdp success!\r\n");
+
+	/*从SIP服务器发过来的INVITE请求的o字段或c字段中获取媒体服务器的IP地址与端口*/
+		media_sever_ip   = sdp_message_o_addr_get(sdp_msg);/*媒体服务器IP地址*/
+		media_sever_port = sdp_message_m_port_get(sdp_msg, 0);/*媒体服务器IP端口*/
+		//printf("%s->%s:%s\r\n", sdp_msg->s_name, media_sever_ip, media_sever_port);
+
+	g_call_id = p_event->cid;/*保存全局INVITE连接ID*/
+/*实时点播*/
+	if (0 == strcmp(sdp_msg->s_name, "Play"))
+	{
+		g_did_realPlay = p_event->did;/*保存全局会话ID：实时视音频点播*/
+
+		//interface start transport
+		uas_function_run(uas_start_transport,NULL);
+		//end interface
+	}
+/*回放*/
+	else if (0 == strcmp(sdp_msg->s_name, "Playback"))
+	{
+		g_did_backPlay = p_event->did;/*保存全局会话ID：历史视音频回放*/
+	}
+/*下载*/
+	else if (0 == strcmp(sdp_msg->s_name, "Download"))
+	{
+		g_did_fileDown = p_event->did;/*保存全局会话ID：视音频文件下载*/
+	}
+
+	//csenn_eXosip_callback.csenn_eXosip_mediaControl(sdp_msg->s_name, media_sever_ip, media_sever_port);
+}
+
 void uas_eXosip_processEvent(void)
 {
 	eXosip_event_t *g_event  = NULL;/*消息事件*/
@@ -211,7 +253,7 @@ void uas_eXosip_processEvent(void)
 				/*历史视音频回放*/
 				/*视音频文件下载*/
 				printf("\r\n<EXOSIP_CALL_ACK>\r\n");/*收到ACK才表示成功建立连接*/
-				csenn_eXosip_paraseInviteBody(g_event);/*解析INVITE的SDP消息体，同时保存全局INVITE连接ID和全局会话ID*/
+				uas_eXosip_paraseInviteBody(g_event);/*解析INVITE的SDP消息体，同时保存全局INVITE连接ID和全局会话ID*/
 			}
 			break;
 			case EXOSIP_CALL_CLOSED:/*BEY*/
@@ -246,5 +288,6 @@ void uas_eXosip_processEvent(void)
 		}
 	}
 }
+
 
 #endif
