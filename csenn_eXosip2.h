@@ -44,6 +44,8 @@ struct _device_info/*设备信息结构体*/
 	char *device_firmware;/*设备固件版本*//*默认值：V1.0*/
 	char *device_encode;/*是否编码*//*取值范围：ON/OFF*//*默认值：ON*/
 	char *device_record;/*是否录像*//*取值范围：ON/OFF*//*默认值：OFF*/
+
+	char * cfgFile;
 }device_info;
 struct _device_status/*设备状态结构体*/
 {

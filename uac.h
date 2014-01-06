@@ -12,6 +12,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
+#include <fcntl.h>
 
 #include "interface.h"
 
@@ -21,15 +22,37 @@
 int uac_init()
 {
 	printf("start\n");
+	//if(device_info.cfgFile==NULL)
+	//{
+		//static  char cfgFile[30]="default.cfg";
+		//device_info.cfgFile="default.cfg";
+		//init_conf("default.cfg");
+	//}
 	interface_init();
 			csenn_eXosip_launch();
-			static  char eXosip_server_id[30]           = "34020000001180000002";
-			static  char eXosip_server_ip[20]           = "192.168.17.127";//"123456";//
-			static  char eXosip_server_port[10]         = "5060";
-			static  char eXosip_ipc_id[30]              = "11111";//"34020000001180000002";//
-			static  char eXosip_ipc_pwd[20]             = "123456";//"12345678";//
-			static  char eXosip_ipc_ip[20]              = "192.168.171.128";
-			static  char eXosip_ipc_port[10]            = "5060";
+			static  char eXosip_server_id[30];//           = "34020000001180000002";
+			static  char eXosip_server_ip[20];//           = "192.168.17.127";//"123456";//
+			static  char eXosip_server_port[10];//         = "5060";
+			static  char eXosip_ipc_id[30];//              = "11111";//"34020000001180000002";//
+			static  char eXosip_ipc_pwd[20];//             = "123456";//"12345678";//
+			static  char eXosip_ipc_ip[20];//              = "192.168.171.128";
+			static  char eXosip_ipc_port[10];//            = "5060";
+
+			get_conf_value("server_id",eXosip_server_id);
+			//printf("eXosip_server_id:%s\n",eXosip_server_id);
+			get_conf_value("server_ip",eXosip_server_ip);
+			//printf("eXosip_server_ip:%s\n",eXosip_server_ip);
+			get_conf_value("server_port",eXosip_server_port);
+			//printf("eXosip_server_port:%s\n",eXosip_server_port);
+
+			get_conf_value("client_id",eXosip_ipc_id);
+			//printf("eXosip_ipc_id:%s\n",eXosip_ipc_id);
+			get_conf_value("client_pwd",eXosip_ipc_pwd);
+			//printf("eXosip_ipc_pwd:%s\n",eXosip_ipc_pwd);
+			get_conf_value("client_ip",eXosip_ipc_ip);
+			//printf("eXosip_ipc_ip:%s\n",eXosip_ipc_ip);
+			get_conf_value("client_port",eXosip_ipc_port);
+			//printf("eXosip_ipc_port:%s\n",eXosip_ipc_port);
 
 			device_info.server_id           = eXosip_server_id;
 			getlocalip(eXosip_ipc_ip);
@@ -176,5 +199,77 @@ int getlocalip(char* outip)
 
 }
 
+int get_conf_value( char *key_name, char *value)
+{
+	char * file=device_info.cfgFile;
+    int res;
+    int fd = open(file,O_RDONLY);
+    if(fd > 2){
+        res = 0;
+        char c;
+        char *ptrk=key_name;
+        char *ptrv=value;
+        while((read(fd,&c,1))==1)
+         {
+           if(c == (*ptrk)){
+             do{
+            	 	ptrk ++;
+					read(fd,&c,1);
+                }while(c == (*ptrk));
+				if(c=='='&&(*ptrk)=='\0'){
+					while(1)
+						{
+						read(fd,&c,1);
+						if(c != '\n')
+							{
+								(*ptrv) = c;
+								ptrv ++;
+							}
+						else{
+								(*ptrv) = '\0';
+								break;
+							}
+						}
+					res = 1;
+					break;
+				}else{
+					do{
+					read(fd,&c,1);
+					}while(c != '\n');
+					ptrk=key_name;
+				}
+			}
+		   else
+			{
+			do{
+				read(fd,&c,1);
+			}while(c != '\n');
+			ptrk=key_name;
+			}
+		}
+		close(fd);
+		}else{
+		res = -1;
+	}
+    return res;
+}
+int init_conf(char * file)
+{
+
+	int fd=open(file,O_RDONLY);
+	    if(fd>2){   //确保文件存在
+	    	static  char * cfgFile ;
+	    	cfgFile=(char *)malloc(sizeof(char)*30);
+	    	strcpy(cfgFile,file);
+	    	device_info.cfgFile=cfgFile;
+	        close(fd);
+	        printf("open config file:%s success\n",file);
+	    }
+	    else{
+	       printf("can not open config file:%s\n",file);
+	       exit(1);
+	    }
+	return 0;
+	}
 
 #endif

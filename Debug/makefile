@@ -22,19 +22,19 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: uac
+all: SIP-system
 
 # Tool invocations
-uac: $(OBJS) $(USER_OBJS)
+SIP-system: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -L"/home/jzw/Desktop/workspace/uac" -o "uac" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -L"/home/team/workspace/SIP-system" -o "SIP-system" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(OBJS)$(C_DEPS)$(EXECUTABLES) uac
+	-$(RM) $(OBJS)$(C_DEPS)$(EXECUTABLES) SIP-system
 	-@echo ' '
 
 .PHONY: all clean dependents
