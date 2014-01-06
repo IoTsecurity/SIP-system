@@ -47,6 +47,13 @@ int uac_receive_Playmedia()
 	return 0;
 }
 
+/*filled by yaoyao*/ // close media receiving process from media server in client
+int uac_close_Playmedia()
+{
+
+	return 0;
+}
+
 // get rtsp data, fill in INFO for sending to media server by client
 int uac_get_rtsp(char *rtsp_data, struct st_rtsptype  *ptr_st_rtsptype)
 {
@@ -59,13 +66,6 @@ int uac_get_rtsp(char *rtsp_data, struct st_rtsptype  *ptr_st_rtsptype)
 // handle MESSAGE, received from media server in client
 int uac_handle_message(char *message)
 {
-	return 0;
-}
-
-/*filled by yaoyao*/ // close media receiving process from media server in client
-int uac_close_Playmedia()
-{
-
 	return 0;
 }
 
@@ -126,6 +126,12 @@ int uas_send_Playmedia()
 	return 0;
 }
 
+/*filled by yaoyao*/ // close media sending process to client in media server
+int uas_close_Playmedia()
+{
+	return 0;
+}
+
 // handle rtsp data via INFO, received from client by media server
 int uas_handle_rtsp(char *rtsp_data)
 {
@@ -145,12 +151,6 @@ int get_message(char *message, char *message_type)
 			"<DeviceID>000</DeviceID>"
 			"<NotifyType>121</NotifyType>"
 			"</Notify>");
-	return 0;
-}
-
-/*filled by yaoyao*/ // close media sending process to client in media server
-int uas_close_Playmedia()
-{
 	return 0;
 }
 
