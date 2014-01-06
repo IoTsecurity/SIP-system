@@ -61,15 +61,15 @@ int main()
 					uac_register();
 					break;
 				case 'i':
-					uac_get_sdp(send_sdp_data);
+					uac_get_Playsdp(send_sdp_data);
 					uac_invite(&inviteId,"34020000001310000054@192.168.17.127:5060",//"34020000001310000051@192.168.17.1:5060",
 							send_sdp_data,recieve_sdp_data);
-					uac_handle_sdp(recieve_sdp_data);
-					uac_receive_media();
+					uac_handle_Playsdp(recieve_sdp_data);
+					uac_receive_Playmedia();
 					break;
 				case 'b':
 					uac_bye(inviteId);
-					uac_close_media();
+					uac_close_Playmedia();
 					break;
 				case 'n':
 					//uas_send_info(inviteId);
