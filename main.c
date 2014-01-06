@@ -45,6 +45,7 @@ int main()
 		printf("m: send message\n");
 		printf("b: bye\n");
 		printf("s: run as a uas\n");
+		printf("e: exit\n");
 
 		char command;
 		//printf ("please input the comand:\n");
@@ -62,7 +63,7 @@ int main()
 					break;
 				case 'i':
 					uac_get_Playsdp(send_sdp_data);
-					uac_invite(&inviteId,"34020000001310000054@192.168.17.127:5060",//"34020000001310000051@192.168.17.1:5060",
+					uac_invite(&inviteId,"34020000001310000054@192.168.17.129:5060",//"34020000001310000051@192.168.17.1:5060",
 							send_sdp_data,recieve_sdp_data);
 					uac_handle_Playsdp(recieve_sdp_data);
 					uac_receive_Playmedia();
@@ -86,6 +87,9 @@ int main()
 					break;
 				case 's':
 					uas_eXosip_processEvent();
+					break;
+				case 'e':
+					exit(1);
 					break;
 				default:
 					break;

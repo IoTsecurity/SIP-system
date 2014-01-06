@@ -28,7 +28,7 @@ int uac_init()
 			static  char eXosip_server_port[10]         = "5060";
 			static  char eXosip_ipc_id[30]              = "11111";//"34020000001180000002";//
 			static  char eXosip_ipc_pwd[20]             = "123456";//"12345678";//
-			static  char eXosip_ipc_ip[20]              = "192.168.171.128";
+			static  char eXosip_ipc_ip[20]              = "192.168.115.42";
 			static  char eXosip_ipc_port[10]            = "5060";
 
 			device_info.server_id           = eXosip_server_id;
