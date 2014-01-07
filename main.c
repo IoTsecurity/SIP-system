@@ -28,7 +28,7 @@
 #include <eXosip2/eXosip.h>
 */
 
-int main()
+int main(int argc,char *argv[])
 {
 		sessionId inviteId;
 		char send_sdp_data[1024];
@@ -37,6 +37,10 @@ int main()
 		char EOF_message[1024];
 		struct st_rtsptype rtsptype;
 
+		if(argc>1)
+		init_conf(argv[1]);
+		else
+		init_conf("default.cfg");
 		uac_init();
 
 		printf("r: regester\n");
@@ -55,7 +59,10 @@ int main()
 		{
 			printf ("please input the comand:\n");
 			scanf ("%c", &command);
+			if(command=='\n')
+				continue;
 			getchar ();
+			//printf("+%c+\n",command);
 			switch (command)
 			{
 				case 'r':
@@ -63,7 +70,11 @@ int main()
 					break;
 				case 'i':
 					uac_get_Playsdp(send_sdp_data);
-					uac_invite(&inviteId,"34020000001310000054@192.168.17.129:5060",//"34020000001310000051@192.168.17.1:5060",
+					char *default_invite;
+					default_invite=(char *)malloc(sizeof(char)* 100);
+					get_conf_value("default_invite",default_invite);
+					//printf("default_invite:%s\n",default_invite);
+					uac_invite(&inviteId,default_invite,//"34020000001310000051@192.168.17.1:5060",
 							send_sdp_data,recieve_sdp_data);
 					uac_handle_Playsdp(recieve_sdp_data);
 					uac_receive_Playmedia();
