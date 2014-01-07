@@ -7,7 +7,7 @@
 #ifndef INTERFACE_H
 #define INTERFACE_H
 
-//end uac interface
+//begin uac interface
 
 // get sdp, fill in INVITE, send to media server by client
 //int uac_get_sdp(char *sdp_data);
