@@ -7,7 +7,6 @@
 #ifndef INTERFACE_H
 #define INTERFACE_H
 
-
 int user_type;
 int call_type;
 int invite_user_type;
@@ -19,15 +18,15 @@ extern int invite_user_type;
 extern int invite_type;
 
 #define USER_TYPE_IPC 		1
-#define USER_TYPE_CLIENT 	2
+#define USER_TYPE_CLIENT 		2
 #define USER_TYPE_NVR 		3
 
 
 #define CALL_TYPE_PLAY 		1
-#define CALL_TYPE_PLAYBACK 	2
+#define CALL_TYPE_PLAYBACK 		2
 
 
-#define INVITE_USER_TYPE_IPC 		1
+#define INVITE_USER_TYPE_IPC 	1
 #define INVITE_USER_TYPE_CLIENT 	2
 
 
