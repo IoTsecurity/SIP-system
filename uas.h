@@ -14,9 +14,15 @@ int handle_invite(eXosip_event_t * g_event)
 	message=(char *)malloc (body->length*sizeof(char));
 	snprintf (message, body->length,"%s", body->body);
 
+	//identify the invite_user_type and invite_type from the sdp
+	invite_user_type=INVITE_USER_TYPE_CLIENT;
+	invite_type=INVITE_TYPE_PLAY;
+
+
 	//interface do somthing with the sdp
 	//function_run(uas_handle_invite_sdp,message);
-	uas_function_run(uas_handle_invite_sdp,message);
+	//uas_function_run(uas_handle_invite_sdp,message);
+	uas_handle_sdp(message);
 	//end interface
 
 
@@ -44,7 +50,8 @@ int handle_invite(eXosip_event_t * g_event)
 		//printf("<MSG_IS_INVITE>\r\n");
 
 		//interface get sdp
-		uas_function_run(uas_get_invite_sdp,sdp_body);
+		//uas_function_run(uas_get_invite_sdp,sdp_body);
+		uas_get_sdp(sdp_body);
 		//end interface
 
 		eXosip_lock();
@@ -81,12 +88,14 @@ int handle_message(eXosip_event_t * g_event)
 
 		if(MSG_IS_INFO(g_event->request))
 		//interface handle the message
-		uas_function_run(uas_handle_Message,message);
+		//uas_function_run(uas_handle_Message,message);
+			uas_handle_Historyrtsp(message);
 		//end interface
 
 		else if(MSG_IS_MESSAGE(g_event->request))
 		//interface handle the message
-		uas_function_run(uas_handle_Message,message);
+		//uas_function_run(uas_handle_Message,message);
+		handle_HistoryEOFmessage(message);
 		//end interface
 
 		free(message);
@@ -105,10 +114,11 @@ int handle_bye(eXosip_event_t * g_event)
 						if((0 != g_did_realPlay)&&(g_did_realPlay == g_event->did))/*实时视音频点播*/
 						{
 							/*关闭：实时视音频点播*/
-							printf("realPlay closed success!\r\n");
+							//printf("realPlay closed success!\r\n");
 
 							//interface stop transport
-							uas_function_run(uas_stop_transport,NULL);
+							//uas_function_run(uas_stop_transport,NULL);
+							uas_close_media();
 							//end interface
 
 							g_did_realPlay = 0;
@@ -116,10 +126,11 @@ int handle_bye(eXosip_event_t * g_event)
 						else if((0 != g_did_backPlay)&&(g_did_backPlay == g_event->did))/*历史视音频回放*/
 						{
 							/*关闭：历史视音频回放*/
-							printf("backPlay closed success!\r\n");
+							//printf("backPlay closed success!\r\n");
 
 							//interface stop transport
-							uas_function_run(uas_stop_transport,NULL);
+							//uas_function_run(uas_stop_transport,NULL);
+							uas_close_media();
 							//end interface
 
 							g_did_backPlay = 0;
@@ -127,17 +138,20 @@ int handle_bye(eXosip_event_t * g_event)
 						else if((0 != g_did_fileDown)&&(g_did_fileDown == g_event->did))/*视音频文件下载*/
 						{
 							/*关闭：视音频文件下载*/
-							printf("fileDown closed success!\r\n");
+							//printf("fileDown closed success!\r\n");
 
 							//interface stop transport
-							uas_function_run(uas_stop_transport,NULL);
+							//uas_function_run(uas_stop_transport,NULL);
+							uas_close_media();
 							//end interface
 
 							g_did_fileDown = 0;
 						}
 						if((0 != g_call_id)&&(0 == g_did_realPlay)&&(0 == g_did_backPlay)&&(0 == g_did_fileDown))/*设置全局INVITE连接ID*/
 						{
-							printf("call closed success!\r\n");
+							//printf("call closed success!\r\n");
+
+							uas_close_media();
 							g_call_id = 0;
 						}
 					}
@@ -171,7 +185,8 @@ void uas_eXosip_paraseInviteBody(eXosip_event_t *p_event)
 		g_did_realPlay = p_event->did;/*保存全局会话ID：实时视音频点播*/
 
 		//interface start transport
-		uas_function_run(uas_start_transport,NULL);
+		//uas_function_run(uas_start_transport,NULL);
+		uas_start_media();
 		//end interface
 	}
 /*回放*/

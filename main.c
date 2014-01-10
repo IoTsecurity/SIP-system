@@ -69,6 +69,7 @@ int main(int argc,char *argv[])
 					uac_register();
 					break;
 				case 'i':
+					call_type=CALL_TYPE_PLAY;
 					uac_get_Playsdp(send_sdp_data);
 					char *default_invite;
 					default_invite=(char *)malloc(sizeof(char)* 100);
@@ -81,18 +82,19 @@ int main(int argc,char *argv[])
 					break;
 				case 'b':
 					uac_bye(inviteId);
-					uac_close_Playmedia();
+					//uac_close_Playmedia();
+					uac_close_media();
 					break;
 				case 'n':
 					//uas_send_info(inviteId);
 					rtsptype.rtsp_datatype="PLAY";
 					rtsptype.scale=1;
-					uac_get_rtsp(rtsp_data,&rtsptype);
+					uac_get_Historyrtsp(rtsp_data,&rtsptype);
 					uac_send_message(inviteId,"INFO","Application/MANSRTSP",rtsp_data);
 					break;
 				case 'm':
 					//send "EOF" message
-					get_message(EOF_message,"EOF");
+					get_HistoryEOFmessage(EOF_message,"EOF");
 					uac_send_message(inviteId,"MESSAGE","Application/MANSCDP+xml",EOF_message);
 					//uas_send_message(inviteId,"INFO","Application/MANSRTSP","sssss");
 					break;
