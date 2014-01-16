@@ -47,7 +47,7 @@ funcP uas_get_info;				//char *message, char *message_type
 */
 //int uas_function_run(funcP fun_name,void(*arg));
 
-
+///////////////////////////filled by yaoyao///////////////////////////////////
 /*uac Transport beteewn IPC and NVR interface begin*/
 
 int uac_get_Transportsdp(char *sdp_data);
@@ -71,8 +71,9 @@ int uas_receive_Transportmedia();
 int uas_close_Transportmedia();
 
 /*uas Transport beteewn IPC and NVR interface end*/
+//////////////////////////////////////////////////////////////
 
-
+////////////////////////////filled by yaoyao//////////////////////////////////
 /*uac PLAY interface begin*/
 
 /*filled by yaoyao*/ // get sdp, fill in INVITE, send to media server by client by Play way
@@ -106,8 +107,9 @@ int uas_send_Playmedia();
 int uas_close_Playmedia();
 
 /*uas PLAY interface end*/
+//////////////////////////////////////////////////////////////
 
-
+////////////////////////////filled by liuqinghao//////////////////////////////////
 /*uac PLAYBACK interface end*/
 
 int uac_get_Historysdp(char *sdp_data);
@@ -152,31 +154,32 @@ int uas_handle_Historyrtsp(char *rtsp_data);
 int get_HistoryEOFmessage(char *message, char *message_type);
 
 /*uas PLAYBACK interface end*/
+//////////////////////////////////////////////////////////////
 
 
 
-int interface_init();
-
-
-
+/////////////////////////////filled by lvshichao/////////////////////////////////
 //begin register interface
-
-
-int handle_401_Unauthorized_data(void *data);
-
-int get_register2_data(void *data);
-
-int handle_response_data(void *data);
-
-//get eap<access auth request packet>
-//handle eap<access auth response packet>
-//EAP SUCCESS/EAP FAILURE
-//int handle_eap_auth_response(char *eap_auth_response);
+/*=========================================
+* funtion handle_ceat_auth_request_packet
+* parameter：	(input)	char * cert_auth_request_packet,
+				(output)	char * cert_auth_response_packet
+* descripts:	handle ceat auth request packet
+* 				and fill the cert auth response packet
+* ..............
+* return：0 for sucess, -1 for failure
+===========================================*/
+int handle_ceat_auth_request_packet(char * cert_auth_request_packet,
+		char * cert_auth_response_packet);
 
 //end register interface
+//////////////////////////////////////////////////////////////
 
-
+////////////////////////////filled by jiangzaiwei//////////////////////////////////
 //begin uac uas call interface function
+
+//init
+int interface_init();
 
 //uac
 
@@ -197,9 +200,16 @@ int uas_get_sdp(char *sdp_data);
 int uas_start_media(char * peer_location);
 
 int uas_close_media();
+
+//register
+
+int handle_401_Unauthorized_data(void *data);
+
+int get_register2_data(void *data);
+
+int handle_response_data(void *data);
+
 //end uac uas call interface function
-
-
-
+//////////////////////////////////////////////////////////////
 #endif
 

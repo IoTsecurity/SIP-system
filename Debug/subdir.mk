@@ -4,6 +4,8 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../ae_interfaces.c \
+../asue_interfaces.c \
 ../csenn_eXosip2.c \
 ../interface.c \
 ../main.c \
@@ -11,6 +13,8 @@ C_SRCS += \
 ../uas.c 
 
 OBJS += \
+./ae_interfaces.o \
+./asue_interfaces.o \
 ./csenn_eXosip2.o \
 ./interface.o \
 ./main.o \
@@ -18,6 +22,8 @@ OBJS += \
 ./uas.o 
 
 C_DEPS += \
+./ae_interfaces.d \
+./asue_interfaces.d \
 ./csenn_eXosip2.d \
 ./interface.d \
 ./main.d \
