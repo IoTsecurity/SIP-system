@@ -1164,7 +1164,7 @@ int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * resp
 	      while (flag1)
 	        {
 	    	  eXosip_event_t *je;
-	          je = eXosip_event_wait (0, 200);
+	          je = eXosip_event_wait (0, 1000);
 
 	          if (je == NULL)
 	        {

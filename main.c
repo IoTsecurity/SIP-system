@@ -78,7 +78,8 @@ int main(int argc,char *argv[])
 					uac_invite(&inviteId,default_invite,//"34020000001310000051@192.168.17.1:5060",
 							send_sdp_data,recieve_sdp_data);
 					uac_handle_Playsdp(recieve_sdp_data);
-					uac_receive_Playmedia();
+					//uac_receive_Playmedia();
+					uac_start_media(device_info.server_ip);
 					break;
 				case 'b':
 					uac_bye(inviteId);
@@ -108,8 +109,6 @@ int main(int argc,char *argv[])
 					break;
 			}
 		}
-
-		//csenn_eXosip_processEvent();
 
 	printf("end\n");
 	return 0;

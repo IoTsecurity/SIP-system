@@ -19,8 +19,63 @@
 pid_t pid = -1;
 
 //////////////////////////////////////////////////////////////
-//begin uac interface
+//begin interface beteewn IPC and NVR
+/*uac Transport beteewn IPC and NVR interface begin*/
 
+int uac_get_Transportsdp(char *sdp_data)
+{
+	snprintf(sdp_data,21,"uac_get_Transportsdp\n");
+	printf("uac_get_Transportsdp:%s\n",sdp_data);
+	return 0;}
+
+int uac_handle_Transportsdp(char *sdp_data)
+{
+	printf("uac_handle_Transportsdp:%s\n",sdp_data);
+	return 0;}
+
+int uac_send_Transportmedia(char * peer_location)
+{
+	printf("uac_send_Transportmedia\n");
+	return 0;}
+
+int uac_close_Transportmedia()
+{
+	printf("uac_close_Transportmedia\n");
+	return 0;}
+
+/*uac Transport beteewn IPC and NVR interface end*/
+
+/*uas Transport beteewn IPC and NVR interface begin*/
+
+int uas_handle_Transportsdp(char *sdp_data)
+{
+	printf("uas_handle_Transportsdp:%s\n",sdp_data);
+	return 0;}
+
+int uas_get_Transportsdp(char *sdp_data)
+{
+	snprintf(sdp_data,21,"uas_get_Transportsdp");
+	printf("uas_get_Transportsdp:%s\n",sdp_data);
+	return 0;}
+
+int uas_receive_Transportmedia(char * peer_location)
+{
+	printf("uas_receive_Transportmedia\n");
+	return 0;}
+
+int uas_close_Transportmedia()
+{
+	printf("uas_close_Transportmedia\n");
+	return 0;}
+
+/*uas Transport beteewn IPC and NVR interface end*/
+
+//end interface beteewn IPC and NVR
+//////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////
+//begin Play interface
+//begin Play interface in uac
 /*filled by yaoyao*/ // get sdp, fill in INVITE, send to media server by client
 int uac_get_Playsdp(char *sdp_data)
 {/*
@@ -34,15 +89,15 @@ int uac_get_Playsdp(char *sdp_data)
             "m=audio 8000 RTP/AVP 0 8 101\r\n");*/
 	snprintf(sdp_data,1024,
 				"v=0 \r\n"
-"o=- 0 0 IN IP4 127.0.0.1 \r\n"
-"s=Play \r\n"
-"c=IN IP4 0.0.0.0 \r\n"
-"t=0 0 \r\n"
-"a=tool:libavformat 55.12.102 \r\n"
-"m=video 0 RTP/AVP 96 \r\n"
-"a=rtpmap:96 H264/90000 \r\n"
-"a=fmtp:96 packetization-mode=1 \r\n"
-"a=control:streamid=0 \r\n"
+"o=- 0 0 IN IP4 127.0.0.1\r\n"
+"s=Play\r\n"
+"c=IN IP4 0.0.0.0\r\n"
+"t=0 0\r\n"
+"a=tool:libavformat 55.12.102\r\n"
+"m=video 0 RTP/AVP 96\r\n"
+"a=rtpmap:96 H264/90000\r\n"
+"a=fmtp:96 packetization-mode=1\r\n"
+"a=control:streamid=0\r\n"
 );
 	return 0;
 }
@@ -55,9 +110,8 @@ int uac_handle_Playsdp(char *sdp_data)
 	return 0;
 }
 
-
 /*filled by yaoyao*/ // start request: media receiving process from media server in client
-int uac_receive_Playmedia()
+int uac_receive_Playmedia(char * peer_location)
 {
 	// start ffplay process
     if(pid < 0){
@@ -100,34 +154,9 @@ int uac_close_Playmedia()
 	return 0;
 }
 
-// get rtsp data, fill in INFO for sending to media server by client
-int uac_get_Historyrtsp(char *rtsp_data, struct st_rtsptype  *ptr_st_rtsptype)
-{
-	// if rtsp datatype in {"PLAY", "FAST", "SLOW"}: check scale
-	snprintf(rtsp_data,1024,
-				"this is test data!");
-	printf("uac_get_Historyrtsp\n");
-	return 0;
-}
+//end Play interface in uac
 
-// handle MESSAGE, received from media server in client
-int handle_HistoryEOFmessage(char *message)
-{
-	printf("uac_handle_HistoryEOFmessage\n");
-	return 0;
-}
-
-//end uac interface
-
-//////////////////////////////////////////////////////////////
-//begin uas interface
-/*
-int uas_function_run(funcP fun_name,void(*arg))
-{
-	(*fun_name)(arg);
-	return 0;
-	}
-*/
+//begin Play interface in uas
 /*filled by yaoyao*/ // handle sdp data via INVITE received from client in media server
 int uas_handle_Playsdp(char *sdp_data)
 {
@@ -168,7 +197,7 @@ int uas_get_Playsdp(char *sdp_data)
 }
 
 /*filled by yaoyao*/ // start response: media sending process to client in media server
-int uas_send_Playmedia()
+int uas_send_Playmedia(char * peer_location)
 {
 	// Nothing to do, because ffserver is running before uas started.
 	return 0;
@@ -180,7 +209,32 @@ int uas_close_Playmedia()
 	// Nothing to do, because ffserver will be running all the time.
 	return 0;
 }
+//end Play interface in uas
+//end Play interface
+//////////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////////
+//begin History interface
+
+//uac
+// get rtsp data, fill in INFO for sending to media server by client
+int uac_get_Historyrtsp(char *rtsp_data, struct st_rtsptype  *ptr_st_rtsptype)
+{
+	// if rtsp datatype in {"PLAY", "FAST", "SLOW"}: check scale
+	snprintf(rtsp_data,1024,
+				"this is test data!");
+	printf("uac_get_Historyrtsp\n");
+	return 0;
+}
+
+// handle MESSAGE, received from media server in client
+int handle_HistoryEOFmessage(char *message)
+{
+	printf("uac_handle_HistoryEOFmessage\n");
+	return 0;
+}
+
+//uas
 // handle rtsp data via INFO, received from client by media server
 int uas_handle_Historyrtsp(char *rtsp_data)
 {
@@ -203,6 +257,20 @@ int get_HistoryEOFmessage(char *message, char *message_type)
 			"</Notify>");
 	return 0;
 }
+
+//end History interface
+//////////////////////////////////////////////////////////////
+
+
+
+/*
+int uas_function_run(funcP fun_name,void(*arg))
+{
+	(*fun_name)(arg);
+	return 0;
+	}
+*/
+
 
 int interface_init()
 {
@@ -237,7 +305,7 @@ int uac_get_sdp(char *sdp_data)
 	}
 	else
 		return -1;
-	return 1;
+	return 0;
 	}
 
 int uac_handle_sdp(char *sdp_data)
@@ -255,25 +323,25 @@ int uac_handle_sdp(char *sdp_data)
 	}
 	else
 		return -1;
-	return 1;
+	return 0;
 }
 
-int uac_start_media()
-{
+int uac_start_media(char * peer_location)
+{printf("uac_start_media:%s",peer_location);
 	if(user_type==USER_TYPE_IPC)
-		;//uac_send_Transportmedia();
+		;//uac_send_Transportmedia(peer_location);
 	else if(user_type==USER_TYPE_CLIENT)
 	{
 		if(call_type==CALL_TYPE_PLAY)
-			uac_receive_Playmedia();
+			uac_receive_Playmedia(peer_location);
 		else if(call_type==CALL_TYPE_PLAYBACK)
-			;//uac_receive_Historymedia();
+			;//uac_receive_Historymedia(peer_location);
 		else
 			return -1;
 	}
 	else
 		return -1;
-	return 1;
+	return 0;
 	}
 
 int uac_close_media()
@@ -291,7 +359,7 @@ int uac_close_media()
 	}
 	else
 		return -1;
-	return 1;
+	return 0;
 }
 
 //uas
@@ -311,7 +379,7 @@ int uas_handle_sdp(char *sdp_data)
 	}
 	else
 		return -1;
-	return 1;}
+	return 0;}
 
 int uas_get_sdp(char *sdp_data)
 {
@@ -328,24 +396,25 @@ int uas_get_sdp(char *sdp_data)
 	}
 	else
 		return -1;
-	return 1;}
+	return 0;}
 
-int uas_start_media()
+int uas_start_media(char *peer_location)
 {
+	printf("uas_start_media:%s\n",peer_location);
 	if(invite_user_type==INVITE_USER_TYPE_IPC)
-		;//uas_receive_Transportmedia();
+		;//uas_receive_Transportmedia(peer_location);
 	else if(invite_user_type==INVITE_USER_TYPE_CLIENT)
 	{
 		if(invite_type==INVITE_TYPE_PLAY)
-			uas_send_Playmedia();
+			uas_send_Playmedia(peer_location);
 		else if(invite_type==INVITE_TYPE_PLAYBACK)
-			;//uas_send_Historymedia();
+			;//uas_send_Historymedia(peer_location);
 		else
 			return -1;
 	}
 	else
 		return -1;
-	return 1;}
+	return 0;}
 
 int uas_close_media()
 {
@@ -363,9 +432,29 @@ int uas_close_media()
 	}
 	else
 		return -1;
-	return 1;}
+	return 0;}
 
 //end uas interface
 
+
+//begin register interface
+
+int handle_401_Unauthorized_data(void *data)
+{
+	printf("handle_401_Unauthorized_data:%s\n",data);
+	return 0;}
+
+int get_register2_data(void *data)
+{
+	memcpy(data,"+register2_data+", 17);
+	printf("get_register2_data:%s\n",data);
+	return 0;}
+
+int handle_response_data(void *data)
+{
+	printf("handle_response_data:%s\n",data);
+	return 0;}
+
+//end register interface
 
 

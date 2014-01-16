@@ -6,17 +6,23 @@
 C_SRCS += \
 ../csenn_eXosip2.c \
 ../interface.c \
-../main.c 
+../main.c \
+../uac.c \
+../uas.c 
 
 OBJS += \
 ./csenn_eXosip2.o \
 ./interface.o \
-./main.o 
+./main.o \
+./uac.o \
+./uas.o 
 
 C_DEPS += \
 ./csenn_eXosip2.d \
 ./interface.d \
-./main.d 
+./main.d \
+./uac.d \
+./uas.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
