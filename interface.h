@@ -1,8 +1,8 @@
 /*
- * interface.c
+ * interface.h
  *
  *  Created on: 2013年12月18日
- *      Author: jzw
+ *      Author: jzw yaoyao
  */
 #ifndef INTERFACE_H
 #define INTERFACE_H
@@ -47,65 +47,62 @@ funcP uas_get_info;				//char *message, char *message_type
 */
 //int uas_function_run(funcP fun_name,void(*arg));
 
-///////////////////////////filled by yaoyao///////////////////////////////////
-/*uac Transport beteewn IPC and NVR interface begin*/
+/////////////////////////// filled by yaoyao ///////////////////////////////////
+/* Scene 1 :
+ * Register and authentication process
+ * (step 1-6 11-16)
+ */
 
+/* Scene 1 :
+ * Key negotiation process
+ * (step 7-10 17-20)
+ */
+
+/* Scene 1 :
+ * IPC access to NVR process
+ * (step 21-22)
+ */
+
+/* Scene 1 :
+ * IPC communicate to NVR process
+ * (step 23-30)
+ */
+/////////////////////////// written by yaoyao ///////////////////////////////////
+/* uac Transport beteewn IPC and NVR interface begin */
 int uac_get_Transportsdp(char *sdp_data);
-
 int uac_handle_Transportsdp(char *sdp_data);
-
 int uac_send_Transportmedia();
-
 int uac_close_Transportmedia();
-
 /*uac Transport beteewn IPC and NVR interface end*/
 
 /*uas Transport beteewn IPC and NVR interface begin*/
-
 int uas_handle_Transportsdp(char *sdp_data);
-
 int uas_get_Transportsdp(char *sdp_data);
-
 int uas_receive_Transportmedia();
-
 int uas_close_Transportmedia();
+/* uas Transport beteewn IPC and NVR interface end */
 
-/*uas Transport beteewn IPC and NVR interface end*/
-//////////////////////////////////////////////////////////////
-
-////////////////////////////filled by yaoyao//////////////////////////////////
-/*uac PLAY interface begin*/
-
-/*filled by yaoyao*/ // get sdp, fill in INVITE, send to media server by client by Play way
+/* uac PLAY interface begin */
+// get sdp, fill in INVITE, send to media server by client by Play way
 int uac_get_Playsdp(char *sdp_data);
-
-/*filled by yaoyao*/ // handle sdp received from media server in client by Play way
+// handle sdp received from media server in client by Play way
 int uac_handle_Playsdp(char *sdp_data);
-
-/*filled by yaoyao*/ // start request: media receiving process from media server in client
+// start request: media receiving process from media server in client
 int uac_receive_Playmedia();
-
-/*filled by yaoyao*/ // close media receiving process from media server in client
+// close media receiving process from media server in client
 int uac_close_Playmedia();
-
 /*uac PLAY interface end*/
 
-
 /*uas PLAY interface begin*/
-
-/*filled by yaoyao*/ // handle sdp data via INVITE received from client in media server
+// handle sdp data via INVITE received from client in media server
 int uas_handle_Playsdp(char *sdp_data);
-
-/*filled by yaoyao*/ // get sdp data for sending to client in media server
-/*filled by yaoyao*/ // p -> 1024 bytes
+// get sdp data for sending to client in media server
+// p -> 1024 bytes
 int uas_get_Playsdp(char *sdp_data);
-
-/*filled by yaoyao*/ // start response: media sending process to client in media server
+// start response: media sending process to client in media server
 int uas_send_Playmedia();
-
-/*filled by yaoyao*/ // close media sending process to client in media server
+// close media sending process to client in media server
 int uas_close_Playmedia();
-
 /*uas PLAY interface end*/
 //////////////////////////////////////////////////////////////
 

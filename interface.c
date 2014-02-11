@@ -1,9 +1,9 @@
 /*
  * interface.c
  *
- *  Created on: 2014年1月2日
- *      Author: root
+ * Author: jiangzaiwei yaoyao
  */
+
 #include "interface.h"
 
 #include <stdio.h>
@@ -17,6 +17,28 @@
 #include <wait.h>
 
 pid_t pid = -1;
+
+/////////////////////////// filled by yaoyao ///////////////////////////////////
+/* Scene 1 :
+ * Register and authentication process
+ * (step 1-6 11-16)
+ */
+
+/* Scene 1 :
+ * Key negotiation process
+ * (step 7-10 17-20)
+ */
+
+/* Scene 1 :
+ * IPC access to NVR process
+ * (step 21-22)
+ */
+
+/* Scene 1 :
+ * IPC communicate to NVR process
+ * (step 23-30)
+ */
+//////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////
 //begin interface beteewn IPC and NVR
