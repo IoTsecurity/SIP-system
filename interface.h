@@ -52,6 +52,87 @@ funcP uas_get_info;				//char *message, char *message_type
  * Register and authentication process
  * (step 1-6 11-16)
  */
+enum DeviceType{
+	IPC,
+	SIPserver,
+	NVR
+};
+typedef struct KeyData{
+	//
+}KeyData;
+typedef struct KeyRing{
+	char *key_partner_id;
+	unsigned char master[];
+	unsigned char CK[];
+	unsigned char IK[];
+	unsigned char KEK[];
+	unsigned char reauth_IK[];
+}KeyRing;
+typedef struct MACaddr{
+	char macaddr[6];
+}MACaddr;
+
+#define MAXKEYRINGS 10
+typedef struct RegisterContext{
+	char *radius_id;
+	char *peer_id;
+	char *self_id;
+	char *self_password;
+	enum DeviceType self_type;
+	KeyData keydata;
+	MACaddr self_MACaddr;
+	MACaddr peer_MACaddr;
+	unsigned char auth_id_next[32];
+	unsigned char MK_ID[16];
+	unsigned char self_randnum_next[];
+	unsigned char peer_randnum_next[];
+	unsigned char self_rtp_port;
+	unsigned char self_rtcp_port;
+	unsigned char peer_rtp_port;
+	unsigned char peer_rtcp_port;
+	unsigned char nonce_seed[];
+	KeyRing key_table[MAXKEYRINGS];
+}RegisterContext;
+
+//<auth active packet>
+int ProcessWAPIProtocolAuthActive(RegisterContext *rc,
+AuthActive *auth_active_packet);
+
+int HandleWAPIProtocolAuthActive(RegisterContext *rc,
+AuthActive *auth_active_packet);
+
+//<access auth request packet>
+int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc,
+AuthActive *auth_active_packet, AccessAuthRequ *access_auth_requ_packet);
+
+int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc,
+AuthActive *auth_active_packet,
+AccessAuthRequ *access_auth_requ_packet);
+
+//<access auth response packet>
+int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc,
+AccessAuthRequ *access_auth_requ_packet,AccessAuthResp *access_auth_resp_packet);
+
+//Unicast key negotiation request
+int ProcessUnicastKeyNegoRequest(RegisterContext *rc,
+UnicastKeyNegoRequ *unicast_key_nego_requ_packet);
+
+int HandleUnicastKeyNegoRequest(RegisterContext *rc,
+const UnicastKeyNegoRequ *unicast_key_nego_requ_packet);
+
+//Unicast key negotiation Response
+int ProcessUnicastKeyNegoResponse(RegisterContext *rc,
+UnicastKeyNegoResp *unicast_key_nego_resp_packet);
+
+int HandleUnicastKeyNegoResponse(RegisterContext *rc,
+const UnicastKeyNegoResp *unicast_key_nego_resp_packet);
+
+//Unicast key negotiation Confirm
+int ProcessUnicastKeyNegoConfirm(RegisterContext *rc,
+UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet);
+
+int HandleUnicastKeyNegoConfirm(RegisterContext *rc,
+const UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet);
 
 /* Scene 1 :
  * Key negotiation process
