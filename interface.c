@@ -729,11 +729,61 @@ void user_gen_cert_request(char *user_ID,char *username)
  * Register and authentication process
  * (step 1-6 11-16)
  */
+//<auth active packet>
+int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet){
 
+}
+
+int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet){
+
+}
+
+//<access auth request packet>
+int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
+		AccessAuthRequ *access_auth_requ_packet){
+
+}
+
+int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
+		AccessAuthRequ *access_auth_requ_packet){
+
+}
+
+//<access auth response packet>
+int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access_auth_requ_packet,
+		AccessAuthResp *access_auth_resp_packet){
+
+}
 /* Scene 1 :
  * Key negotiation process
  * (step 7-10 17-20)
  */
+//Unicast key negotiation request
+int ProcessUnicastKeyNegoRequest(RegisterContext *rc, UnicastKeyNegoRequ *unicast_key_nego_requ_packet){
+
+}
+
+int HandleUnicastKeyNegoRequest(RegisterContext *rc, const UnicastKeyNegoRequ *unicast_key_nego_requ_packet){
+
+}
+
+//Unicast key negotiation response
+int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unicast_key_nego_resp_packet){
+
+}
+
+int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *unicast_key_nego_resp_packet){
+
+}
+
+//Unicast key negotiation confirm
+int ProcessUnicastKeyNegoConfirm(RegisterContext *rc, UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet){
+
+}
+
+int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet){
+
+}
 
 /* Scene 1 :
  * IPC access to NVR process
