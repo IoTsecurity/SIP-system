@@ -36,6 +36,8 @@ const char *CAID = "0";
 
 static int annotation = 2;  //1-lvshichao,2-yaoyao
 
+const time_t TimeThreshold = 10; // seconds
+
 BOOL getCertData(char *userID, BYTE buf[], int *len)
 {
 	FILE *fp;
@@ -93,30 +95,6 @@ BOOL writeCertFile(char *userID, BYTE buf[], int len)
 	fclose(fp);
 	if(annotation == 2)
 		printf("  write cert complete!\n");
-
-	return TRUE;
-}
-
-BOOL writeUserCertFile(char *userID, BYTE buf[], int len)
-{
-	FILE *fp;
-	char certname[40];
-	memset(certname, '\0', sizeof(certname));//初始化certname,以免后面写如乱码到文件中
-
-	sprintf(certname, "./user/usercert%s.pem", userID);
-
-	printf("user cert file name: %s\n", certname);
-
-	fp = fopen(certname, "w");
-	if (fp == NULL)
-	{
-		printf("open cert file failed!\n");
-		return FALSE;
-	}
-	int res = fwrite(buf, 1, len, fp);
-	printf("user cert's length is %d\n", len);
-	fclose(fp);
-	printf("write user cert complete!\n");
 
 	return TRUE;
 }
@@ -347,7 +325,6 @@ Return:      // 256bit(32Byte)MAC
 Others:      // 如果想设定输出MAC的长度，可考虑添加一个输出MAC长度的形参
 
 *************************************************/
-
 void hmac_sha256(
 		const BYTE *text,      /* pointer to data stream        */
 		int        text_len,   /* length of data stream         */
@@ -410,6 +387,12 @@ void hmac_sha256(
 	memcpy(bufferOut + 64, tk2, SHA256_DIGEST_LENGTH);
 	SHA256(bufferOut, 64 + SHA256_DIGEST_LENGTH, digest);
 }
+
+void KD_hmac_sha256(BYTE *text, unsigned text_len, BYTE *key, unsigned key_len, BYTE *output, unsigned
+length){
+	//
+}
+
 /*************************************************
 
 Function:    // gen_randnum
@@ -740,7 +723,9 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 	//fill auth identify, first time random number
 	if(annotation == 2)
 		printf("fill auth identify:\n");
-	gen_randnum((BYTE *)&auth_active_packet->authidentify, sizeof(auth_active_packet->authidentify));
+	/*
+	 * auth_id = SHA256(n_{SIP Server} XOR Password_{SIP UA} XOR Time_{active})
+	 */
 
 	//fill ae rand number
 	if(annotation == 2)
@@ -810,33 +795,554 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 
 // step3: SIP UA(NVR) - SIP Server
 int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet){
+	//write ae cert into cert file
+	printf("write ae cert into cert file:\n");
+	char *ae_ID = rc->peer_id;
+	writeCertFile(ae_ID, (BYTE *)auth_active_packet->certificatestaae.cer_X509, (int)auth_active_packet->certificatestaae.cer_length);
+
+	//verify sign of AE
+	printf("verify sign of AE:\n");
+	//read ae certificate get ae pubkey(公钥)
+	EVP_PKEY *aepubKey = NULL;
+	BYTE *pTmp = NULL;
+	BYTE deraepubkey[1024];
+	int aepubkeyLen, i;
+	aepubKey = getpubkeyfromcert(ae_ID);
+	if(aepubKey == NULL){
+		printf("get ae's public key failed.\n");
+		return FALSE;
+		}
+	pTmp = deraepubkey;
+	//把证书公钥转换为DER编码的数据，以方便打印(aepubkey结构体不方便打印)
+	aepubkeyLen = i2d_PublicKey(aepubKey, &pTmp);
+
+	//verify the sign
+	if (verify_sign((BYTE *) auth_active_packet,
+			sizeof(AuthActive) - sizeof(sign_attribute),
+			auth_active_packet->aesign.sign.data,
+			auth_active_packet->aesign.sign.length, aepubKey))
+	{
+		printf("  验证AE签名正确......\n");
+		EVP_PKEY_free(aepubKey);
+	}else{
+		printf("ae's sign verify failed.\n");
+		return FALSE;
+		}
+
+	//verify FLAG
+	printf("verify FLAG:\n");
+	if(auth_active_packet->flag != 0x00){
+		printf("Not the first time access.\n");
+		return FALSE;
+	}
+
+	//verify auth active time
+    time_t  t;
+    time(&t);
+    if((t - auth_active_packet->authactivetime) > TimeThreshold)
+    	return FALSE;
+
+	//verify auth_id
+    printf("verify auth_id, unfinished!!!\n");
+	/*
+	 * auth_id = SHA256(n_{SIP Server} XOR Password_{SIP UA} XOR Time_{active})
+	 * then compare
+	 */
+
+	//verify auth identity, is same as before
+	//first time skip this step
+	printf("verify auth identity.\n");
 
 }
 
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet){
+		//fill flag
+		printf("fill flag:\n");
+		access_auth_requ_packet->flag = 0x04;
 
+		//fill auth identify, same as auth active packet
+		printf("fill auth identify:\n");
+		memcpy((BYTE *)&access_auth_requ_packet->authidentify, (BYTE *)&auth_active_packet->authidentify, sizeof(access_auth_requ_packet->authidentify));
+
+		//fill asue rand number
+		printf("fill asue rand number:\n");
+		gen_randnum((BYTE *)&access_auth_requ_packet->asuechallenge, sizeof(access_auth_requ_packet->aechallenge));
+
+		//fill asue key data
+		printf("fill asue cipher data, unfinished!!!\n");
+		/*
+		 * temporary key for ECDH
+		 */
+
+		//fill ae rand number, same as auth active packet
+		printf("fill ae rand number:\n");
+		memcpy((BYTE *)&access_auth_requ_packet->aechallenge, (BYTE *)&auth_active_packet->aechallenge, sizeof(access_auth_requ_packet->aechallenge));
+
+		//fill ae identity
+		printf("fill ae identity:\n");
+		char *ae_ID = rc->peer_id;
+		getLocalIdentity(&access_auth_requ_packet->staaeidentity, ae_ID);
+
+		//fill ecdh param, same as auth active packet
+		printf("fill ecdh param:\n");
+		const  char  oid[]={"1.2.156.11235.1.1.2.1"};
+		getECDHparam(&access_auth_requ_packet->ecdhparam, oid);
+
+		//fill asue certificate
+		printf("fill asue certificate:\n");
+		access_auth_requ_packet->certificatestaasue.cer_identify = 1; //X.509 cert
+
+		BYTE cert_buffer[5000];
+		int cert_len = 0;
+
+		if (!getCertData(rc->self_id, cert_buffer, &cert_len))	  //先读取ASUE证书，"demoCA/newcerts/usercert2.pem"
+		{
+			printf("将证书保存到缓存buffer失败!");
+			return FALSE;
+		}
+
+		access_auth_requ_packet->certificatestaasue.cer_length = cert_len;   //证书长度字段
+		memcpy((access_auth_requ_packet->certificatestaasue.cer_X509),(BYTE*)cert_buffer,strlen((char*)cert_buffer));
+
+		//fill asue signature
+		printf("fill asue signature:\n");
+		//AE\u4f7f\u7528AE\u7684\u79c1\u94a5(userkey2.pem)\u6765\u751f\u6210AE\u7b7e\u540d
+		EVP_PKEY * privKey;
+		BYTE sign_value[1024];					//保存签名值的数组
+		unsigned int  sign_len;
+
+		privKey = getprivkeyfromprivkeyfile(rc->self_id);
+		if(privKey == NULL)
+		{
+			printf("getprivkeyitsself().....failed!\n");
+			return FALSE;
+		}
+
+		if(!gen_sign((BYTE *)access_auth_requ_packet,(sizeof(AccessAuthRequ)-sizeof(access_auth_requ_packet->asuesign)),sign_value, &sign_len,privKey))
+		{
+			printf("generate signature failed.\n");
+			return FALSE;
+		}
+
+		access_auth_requ_packet->asuesign.sign.length = sign_len;
+		memcpy(access_auth_requ_packet->asuesign.sign.data,sign_value,sign_len);
+
+		return TRUE;
 }
 
 // step4: SIP Server - Radius Server
 int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet){
 
+	//write asue cert into cert file
+	if(annotation == 2)
+		printf("write asue cert into cert file:\n");
+	char *asue_ID = rc->peer_id;
+	writeCertFile(asue_ID, (BYTE *)access_auth_requ_packet->certificatestaasue.cer_X509, (int)access_auth_requ_packet->certificatestaasue.cer_length);
+
+	//verify sign of ASUE
+	if(annotation == 2)
+		printf("verify sign of ASUE:\n");
+	//read ae certificate get ae pubkey(公钥)
+	EVP_PKEY *asuepubKey = NULL;
+	BYTE *pTmp = NULL;
+	BYTE derasuepubkey[1024];
+	int asuepubkeyLen;
+	asuepubKey = getpubkeyfromcert(asue_ID);
+	if(asuepubKey == NULL){
+		printf("get asue's public key failed.\n");
+		return FALSE;
+		}
+
+	pTmp = derasuepubkey;
+	//把证书公钥转换为DER编码的数据，以方便打印(aepubkey结构体不方便打印)
+	asuepubkeyLen = i2d_PublicKey(asuepubKey, &pTmp);
+
+	//verify the sign
+	if (verify_sign((BYTE *) access_auth_requ_packet,
+			sizeof(AccessAuthRequ) - sizeof(sign_attribute),
+			access_auth_requ_packet->asuesign.sign.data,
+			access_auth_requ_packet->asuesign.sign.length, asuepubKey))
+	{
+		printf("  验证ASUE签名正确......\n");
+		EVP_PKEY_free(asuepubKey);
+	}else{
+		printf("asue's sign verify failed.\n");
+		return FALSE;
+		}
+
+	//verify FLAG
+	if(annotation == 2)
+		printf("verify FLAG:\n");
+	if(access_auth_requ_packet->flag != 0x04){
+		printf("verify flag failed.\n");
+		return FALSE;
+	}
+
+	//verify auth identity, is same auth active packet
+	if(annotation == 2)
+		printf("verify auth identity:\n");
+	if(memcmp(access_auth_requ_packet->authidentify,
+		auth_active_packet->authidentify,
+		sizeof(access_auth_requ_packet->authidentify)) != 0)
+		printf("verify auth identity failed!\n");
+
+	//verify AE identity
+	if(annotation == 2)
+		printf("verify AE identity, unfinished!!!\n");
+	identity localaeidentity;
+	getLocalIdentity(&localaeidentity, rc->self_id);
+
+	if( memcmp(access_auth_requ_packet->staaeidentity.cer_der.data,
+		localaeidentity.cer_der.data,
+		localaeidentity.identity_length) != 0){
+		printf("verify AE identity failed.\n");
+		printf("length:%d, %d\n", localaeidentity.identity_length, access_auth_requ_packet->staaeidentity.identity_length);
+		printf("data[:20]: %20s, %20s\n", localaeidentity.cer_der.data, access_auth_requ_packet->staaeidentity.cer_der.data);
+		return FALSE;
+	}else {
+		if(annotation == 2)
+			printf("verify AE identity succeed.\n");
+	}
+
+	//verify AE rand number, is same auth active packet
+	if(annotation == 2)
+		printf("verify AE rand number:\n");
+	if(memcmp(access_auth_requ_packet->aechallenge,
+		auth_active_packet->aechallenge,
+		sizeof(access_auth_requ_packet->aechallenge)) != 0)
+		printf("verify AE rand number failed!\n");
+
+	return TRUE;
+}
+int ProcessWAPIProtocolCertAuthRequest(RegisterContext *rc,
+AccessAuthRequ *access_auth_requ_packet,
+CertificateAuthRequ *certificate_auth_requ_packet){
+	//fill addid
+	memcpy((BYTE *)&(certificate_auth_requ_packet->addid.mac1),rc->peer_MACaddr.macaddr,sizeof(certificate_auth_requ_packet->addid.mac1));
+	memcpy((BYTE *)&(certificate_auth_requ_packet->addid.mac2),rc->self_MACaddr.macaddr,sizeof(certificate_auth_requ_packet->addid.mac2));
+
+	//fill ae and asue rand number
+	memcpy((BYTE *)&(certificate_auth_requ_packet->aechallenge), (BYTE *)&(access_auth_requ_packet->aechallenge), sizeof(certificate_auth_requ_packet->aechallenge));
+	memcpy((BYTE *)&(certificate_auth_requ_packet->asuechallenge), (BYTE *)&(access_auth_requ_packet->asuechallenge), sizeof(certificate_auth_requ_packet->asuechallenge));
+
+	//fill asue certificate
+	memcpy(&(certificate_auth_requ_packet->staasuecer),&(access_auth_requ_packet->certificatestaasue),sizeof(certificate));
+	//memset((BYTE *)&(certificate_auth_requ_packet->staasuecer),0,sizeof(certificate));
+
+	//fill ae certificate
+	BYTE cert_buffer[5000];
+	int cert_len = 0;
+
+	memset(cert_buffer,0,sizeof(cert_buffer));
+	cert_len = 0;
+
+	if (!getCertData(rc->self_id, cert_buffer, &cert_len)) //读取AE证书，"usercert2.pem",uesrID=2
+	{
+		printf("将证书保存到缓存buffer失败!");
+		return FALSE;
+	}
+
+	certificate_auth_requ_packet->staaecer.cer_length = cert_len;   //证书长度字段
+	memcpy((certificate_auth_requ_packet->staaecer.cer_X509),cert_buffer, cert_len);
+
+	//fill ae signature
+	EVP_PKEY * privKey;
+	BYTE sign_value[1024];					//保存签名值的数组
+	unsigned int  sign_len;
+
+	privKey = getprivkeyfromprivkeyfile(rc->self_id);
+	if(privKey == NULL)
+	{
+		printf("getprivkeyitsself().....failed!\n");
+		return FALSE;
+	}
+
+	if(!gen_sign( (BYTE *)certificate_auth_requ_packet, sizeof(certificate_auth_requ_packet)-sizeof(certificate_auth_requ_packet->aesign),sign_value, &sign_len,privKey ))
+	{
+		printf("generate signature failed.\n");
+		return FALSE;
+	}
+
+	certificate_auth_requ_packet->aesign.sign.length = sign_len;
+	memcpy(certificate_auth_requ_packet->aesign.sign.data,sign_value,sign_len);
+
+	return TRUE;
 }
 
 // step5: Radius Server - SIP Server
-//?
+int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
+CertificateAuthRequ *certificate_auth_requ_packet,
+CertificateAuthResp *certificate_auth_resp_packet,
+AccessAuthResp *access_auth_resp_packet){
+	memset((BYTE *)access_auth_resp_packet, 0, sizeof(AccessAuthResp));
+
+	//读取CA(驻留在ASU)中的公钥证书获取CA公钥
+	EVP_PKEY *asupubKey = NULL;
+	BYTE *pTmp = NULL;
+	BYTE derasupubkey[1024];
+	int asupubkeyLen;
+	asupubKey = getpubkeyfromcert(rc->radius_id);
+	if(asupubKey == NULL){
+		printf("get asu's public key failed.\n");
+		return FALSE;
+		}
+
+	pTmp = derasupubkey;
+	//把证书公钥转换为DER编码的数据，以方便打印(aepubkey结构体不方便打印)
+	asupubkeyLen = i2d_PublicKey(asupubKey, &pTmp);
+
+	//验证ASU服务器对整个证书认证响应分组(除本字段外)的签名，检验该分组的完整性、验证该份组的发送源身份
+	if (verify_sign((BYTE *) certificate_auth_resp_packet,
+			sizeof(CertificateAuthResp) - sizeof(sign_attribute),
+			certificate_auth_resp_packet->asusign.sign.data,
+			certificate_auth_resp_packet->asusign.sign.length, asupubKey))
+	{
+		printf("验证ASU服务器对整个证书认证响应分组(除本字段外)的签名正确！！！......\n");
+		EVP_PKEY_free(asupubKey);
+	}
+
+	//验证ASUE随机数是否一致(证书认证请求分组vs证书认证响应分组)
+	if(annotation == 2)
+		printf("verify AE rand number between certificate_auth_requ vs certificate_auth_resp_packet:\n");
+	if (memcmp(certificate_auth_resp_packet->cervalidresult.random1,
+			certificate_auth_requ_packet->aechallenge,
+			sizeof(certificate_auth_requ_packet->aechallenge)) != 0)
+	{
+		printf("verify ASUE random number failed between certificate_auth_requ vs certificate_auth_resp_packet!\n");
+		return FALSE;
+	}
+
+	//检查ASU对ASUE证书的验证结果字段(certificate_auth_resp_packet->cervalidresult.cerresult1)
+	if(annotation == 2)
+		printf("verify cert valid result of ASUE:\n");
+	if (certificate_auth_resp_packet->cervalidresult.cerresult1!= 0)
+	{
+		//printf("asu verify asue cert valid result failed.\n");
+		printf("警告：网络硬盘录像机验证摄像机失败！不允许该摄像机接入！.\n");
+		return FALSE;
+	}
+	else if(annotation == 2)
+		printf("Authentication succeed!!\n");       //asu verify asue cert valid result succeed
+	else if(annotation == 1)
+		printf("网络硬盘录像机验证摄像机成功！允许该摄像机接入！\n");       //asu verify asue cert valid result succeed
+
+	//读取证书认证响应分组中的证书验证结果字段，将该字段拷贝到接入认证响应分组中的复合证书验证结果的证书验证结果字段中
+	memcpy(&(access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result),&(certificate_auth_resp_packet->cervalidresult),sizeof(certificate_valid_result));
+
+	//读取证书认证响应分组中的ASU服务器对证书验证结果字段的签名字段，将该字段拷贝到接入认证响应分组中的复合证书验证结果的签名字段中
+	memcpy(&(access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result_asu_sign),
+			&(certificate_auth_resp_packet->asusign),
+			sizeof(certificate_valid_result));
+
+	return TRUE;
+
+}
 
 // step6: SIP Server - SIP UA(NVR)
 int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
 AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet){
+	//fill flag, same as access auth requ packet
+	if(annotation == 2)
+		printf("fill flag:\n");
+	access_auth_resp_packet->flag = access_auth_requ_packet->flag;
 
+	//fill auth identify, same as access auth requ packet
+	if(annotation == 2)
+		printf("fill auth identify:\n");
+	memcpy((BYTE *)&access_auth_resp_packet->authidentify,(BYTE *)&access_auth_requ_packet->authidentify, sizeof(access_auth_resp_packet->authidentify));
+
+	//fill asue rand number
+	if(annotation == 2)
+		printf("fill asue rand number:\n");
+	memcpy((BYTE *)&access_auth_resp_packet->asuechallenge, (BYTE *)&access_auth_requ_packet->asuechallenge, sizeof(access_auth_resp_packet->aechallenge));
+
+	//fill ae rand number
+	if(annotation == 2)
+		printf("fill ae rand number:\n");
+	memcpy((BYTE *)&access_auth_resp_packet->aechallenge, (BYTE *)&access_auth_requ_packet->aechallenge, sizeof(access_auth_resp_packet->aechallenge));
+
+	//fill ae key data
+	if(annotation == 2)
+		printf("fill ae cipher data, unfinished!!!\n");
+	/*
+	 * temporary key for ECDH
+	 */
+
+	//fill certificate valid result
+	if(annotation == 2)
+		printf("fill certificate valid result complete.\n");
+	//almost same type and content as certificate_auth_resp_packet, except addid segment
+	//access_auth_resp_packet->cervalidresult is filled in "HandleProcessWAPIProtocolCertAuthResp" function called before
+	//So skip this step.
+
+	//fill asue access result, depend on "fill certificate valid result" step
+	if(annotation == 2)
+		printf("fill access result:\n");
+	if(access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result.cerresult1 == 0)
+	{
+		access_auth_resp_packet->accessresult = 0; // by means of asu's asue cerresult1,ae set asue's access result(0-succeed,1-failed)
+	}
+
+	//fill ae signature
+	if(annotation == 2)
+		printf("fill ae signature:\n");
+	//AE\u4f7f\u7528AE\u7684\u79c1\u94a5(userkey2.pem)\u6765\u751f\u6210AE\u7b7e\u540d
+	EVP_PKEY * privKey;
+	BYTE sign_value[1024];					//保存签名值的数组
+	unsigned int  sign_len;
+
+	privKey = getprivkeyfromprivkeyfile(rc->self_id);
+	if(privKey == NULL)
+	{
+		printf("getprivkeyitsself().....failed!\n");
+		return FALSE;
+	}
+
+	if(!gen_sign((BYTE *)access_auth_resp_packet,(sizeof(AccessAuthResp)-sizeof(access_auth_resp_packet->aesign)),sign_value, &sign_len,privKey))
+	{
+		printf("generate signature failed.\n");
+		return FALSE;
+	}
+
+	access_auth_resp_packet->aesign.sign.length = sign_len;
+	memcpy(access_auth_resp_packet->aesign.sign.data,sign_value,sign_len);
+
+	return TRUE;
 }
 // step6+: SIP UA(NVR)
 int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access_auth_requ_packet,
 		AccessAuthResp *access_auth_resp_packet){
+		//verify sign of AE
+		printf("verify sign of AE:\n");
+		//read ae certificate get ae pubkey(公钥)
+		EVP_PKEY *aepubKey = NULL;
+		BYTE *pTmp = NULL;
+		BYTE deraepubkey[1024];
+		int aepubkeyLen, i;
+		char *ae_ID = rc->peer_id;
+		aepubKey = getpubkeyfromcert(ae_ID);
+		if(aepubKey == NULL){
+			printf("get ae's public key failed.\n");
+			return FALSE;
+			}
 
+		pTmp = deraepubkey;
+		//把证书公钥转换为DER编码的数据，以方便打印(aepubkey结构体不方便打印)
+		aepubkeyLen = i2d_PublicKey(aepubKey, &pTmp);
+
+		//verify the sign
+		if (verify_sign((BYTE *) access_auth_resp_packet,
+				sizeof(AccessAuthResp) - sizeof(sign_attribute),
+				access_auth_resp_packet->aesign.sign.data,
+				access_auth_resp_packet->aesign.sign.length, aepubKey))
+		{
+			printf("  验证AE签名正确......\n");
+			EVP_PKEY_free(aepubKey);
+		}else{
+			printf("ae's sign verify failed.\n");
+			return FALSE;
+			}
+
+		//verify access result
+		printf("verify access result:\n");
+		if(access_auth_resp_packet->accessresult != 0){
+			printf("verity access result failed.\n");
+			return FALSE;
+		}
+
+		//verify FLAG
+		printf("verify FLAG:\n");
+		if(access_auth_resp_packet->flag != 0x04){
+			printf("verity flag failed.\n");
+			return FALSE;
+		}
+
+		//verify ASUE AE random number
+		printf("verify ASUE, AE rand number:\n");
+		if(memcmp(access_auth_resp_packet->asuechallenge,
+			access_auth_requ_packet->asuechallenge,
+			sizeof(access_auth_resp_packet->asuechallenge)) != 0){
+			printf("verify ASUE random number failed!\n");
+			return FALSE;
+			}
+
+		if(memcmp(access_auth_resp_packet->aechallenge,
+			access_auth_requ_packet->aechallenge,
+			sizeof(access_auth_resp_packet->aechallenge)) != 0){
+			printf("verify AE random number failed!\n");
+			return FALSE;
+			}
+
+		//verify auth identity is same as access auth requ packet
+		printf("verify auth identity:\n");
+		if(memcmp(access_auth_resp_packet->authidentify,
+			access_auth_requ_packet->authidentify,
+			sizeof(access_auth_resp_packet->authidentify)) != 0){
+			printf("verify auth identity failed!\n");
+			return FALSE;
+			}
+
+		//verify cert valid result: verify sign of ASU
+		printf("verify cert valid result: verify sign of ASU:\n");
+		//read ae certificate get ae pubkey(公钥)
+		EVP_PKEY *asupubKey = NULL;
+		//BYTE *pTmp = NULL;
+		BYTE derasupubkey[1024];
+		int asupubkeyLen;
+		char *asu_ID = rc->radius_id;
+		asupubKey = getpubkeyfromcert(asu_ID);
+
+		pTmp = derasupubkey;
+		//把证书公钥转换为DER编码的数据，以方便打印(aepubkey结构体不方便打印)
+		asupubkeyLen = i2d_PublicKey(asupubKey, &pTmp);
+
+		//verify the sign
+		if (verify_sign((BYTE *)&access_auth_resp_packet->cervalrescomplex,
+				sizeof(access_auth_resp_packet->cervalrescomplex) - sizeof(sign_attribute),
+				access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result_asu_sign.sign.data,
+				access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result_asu_sign.sign.length,
+				asupubKey))
+		{
+			printf("  验证ASU签名正确......\n");
+			EVP_PKEY_free(asupubKey);
+		}else{
+			printf("asu's sign verify failed.\n");
+
+			int i;
+			printf("length=%d\n",access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result_asu_sign.sign.length);
+			for (i = 0; i < access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result_asu_sign.sign.length; i++)
+			{
+				if (i % 16 == 0)
+					printf("\n%08xH: ", i);
+				printf("%02x ", access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result_asu_sign.sign.data[i]);
+			}
+			printf("\n");
+
+
+			return FALSE;
+			}
+
+		//verify cert valid result of AE
+		printf("verify cert valid result of AE:\n");
+		if(access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result.cerresult2 != 0){
+			printf("verify cert valid result failed.\n");
+			return FALSE;
+			}
+
+		printf("Authentication succeed!!\n");
+
+		//compute master key, auth_id_next
+		printf("compute master key, auth_id_next, unfinished!!!\n");
+		/*
+		 * rc->key_table[0].MasterKey
+		 * rc->auth_id_next
+		 */
+
+		return TRUE;
 }
+
 /* Scene 1 :
  * Key negotiation process
  * (step 7-10 17-20)

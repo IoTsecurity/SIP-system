@@ -290,7 +290,7 @@ typedef struct _certificate_auth_requ
     certificate       staasuecer;                                  /* STAasue的证书 */
     certificate       staaecer;                                    /* STAae的证书 */
     sign_attribute    aesign;                                      /* AE的签名 */
-}certificate_auth_requ;
+}CertificateAuthRequ;
 
 /* 证书认证响应分组 */
 typedef struct _certificate_auth_resp
@@ -298,7 +298,7 @@ typedef struct _certificate_auth_resp
     addindex                   addid;                             /* 地址索引ADDID */
     certificate_valid_result   cervalidresult;                    /* 证书验证结果 */
     sign_attribute             asusign;                           /* ASU服务器签名 */
-}certificate_auth_resp;
+}CertificateAuthResp;
 
 /* 接入鉴别响应 */
 typedef struct _access_auth_resp
@@ -322,6 +322,50 @@ Calls:       // openssl中读PEM文件的API
 Output:      //	数字证书公钥
 *************************************************/
 EVP_PKEY *getpubkeyfromcert(char *userID);
+
+/*************************************************
+
+Function:    // SHA256
+Description: // SHA256散列函数
+Calls:       // openssl SHA256的API函数
+Called By:   //
+Input:	     //	input---待计算摘要的输入数据
+                input_len---待计算摘要的输入数据长度
+                output---摘要结果输出
+Output:      //	摘要值
+Return:      // 256bit(32Byte)摘要
+Others:      // 本处注释只是为了大家理解，待理解后，本处注释可删除
+
+*************************************************/
+//SHA256(input, input_len, output);
+
+
+/*************************************************
+
+Function:    // hmac_sha256
+Description: // WAPI消息认证MAC算法
+Calls:       // openssl SHA256的API函数
+Called By:   // 待添加！！！
+Input:	     //	text---待计算MAC的输入数据
+                text_len---待计算MAC的输入数据长度
+                key---hmac密钥
+                key_len---hmac密钥长度
+                digest---输出MAC值
+Output:      //	MAC值
+Return:      // 256bit(32Byte)MAC
+Others:      // 如果想设定输出MAC的长度，可考虑添加一个输出MAC长度的形参
+
+*************************************************/
+void hmac_sha256(
+		const BYTE *text,      /* pointer to data stream        */
+		int        text_len,   /* length of data stream         */
+		const BYTE *key,       /* pointer to authentication key */
+		int        key_len,    /* length of authentication key  */
+		void       *digest);    /* caller digest to be filled in */
+
+
+void KD_hmac_sha256(BYTE *text, unsigned text_len, BYTE *key, unsigned key_len, BYTE *output, unsigned
+length);
 
 BOOL gen_sign(BYTE * input,int inputLength,BYTE * sign_value, unsigned int *sign_len,EVP_PKEY * privKey);
 
@@ -349,7 +393,7 @@ int getECDHparam(ecdh_param *ecdhparam, const char *oid);
 
 int getLocalIdentity(identity *localIdentity, char *localUserID);
 
-int par_certificate_auth_resp_packet(certificate_auth_requ * cert_auth_resp_buffer_recv);
+int par_certificate_auth_resp_packet(CertificateAuthRequ * cert_auth_resp_buffer_recv);
 
 /////////////////////////// filled by yaoyao ///////////////////////////////////
 /* Scene 1 :
@@ -369,7 +413,7 @@ typedef struct KeyData{
 }KeyData;
 typedef struct KeyRing{
 	char *key_partner_id;
-	unsigned char master[16];
+	unsigned char MasterKey[16];
 	unsigned char CK[16];
 	unsigned char IK[16];
 	unsigned char KEK[16];
@@ -412,9 +456,15 @@ int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_a
 // step4: SIP Server - Radius Server
 int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet);
+int ProcessWAPIProtocolCertAuthRequest(RegisterContext *rc,
+AccessAuthRequ *access_auth_requ_packet,
+CertificateAuthRequ *certificate_auth_requ_packet);
 
 // step5: Radius Server - SIP Server
-//?
+int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
+CertificateAuthRequ *certificate_auth_requ_packet,
+CertificateAuthResp *certificate_auth_resp_packet,
+AccessAuthResp *access_auth_resp_packet);
 
 // step6: SIP Server - SIP UA(NVR)
 int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
