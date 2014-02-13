@@ -729,27 +729,110 @@ void user_gen_cert_request(char *user_ID,char *username)
  * Register and authentication process
  * (step 1-6 11-16)
  */
-//<auth active packet>
-int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet){
 
+// step2: SIP Server - SIP UA(NVR)
+int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet){
+	//fill flag
+	if(annotation == 2)
+		printf("fill flag:\n");
+	auth_active_packet->flag = 0x00;
+
+	//fill auth identify, first time random number
+	if(annotation == 2)
+		printf("fill auth identify:\n");
+	gen_randnum((BYTE *)&auth_active_packet->authidentify, sizeof(auth_active_packet->authidentify));
+
+	//fill ae rand number
+	if(annotation == 2)
+		printf("fill ae rand number:\n");
+	gen_randnum((BYTE *)&auth_active_packet->aechallenge, sizeof(auth_active_packet->aechallenge));
+
+	//fill auth active time
+	time(&auth_active_packet->authactivetime);
+
+	//fill local ASU identity
+	if(annotation == 2)
+		printf("fill local ASU identity:\n");
+
+	getLocalIdentity(&auth_active_packet->localasuidentity, rc->radius_id);
+
+	//fill ecdh param
+	if(annotation == 2)
+		printf("fill ecdh param:\n");
+	const  char  oid[]={"1.2.156.11235.1.1.2.1"};
+
+	getECDHparam(&auth_active_packet->ecdhparam, oid);
+
+	//fill ae certificate
+	if(annotation == 2)
+		printf("fill ae certificate:\n");
+	auth_active_packet->certificatestaae.cer_identify = 1; //X.509 cert
+
+	BYTE cert_buffer[5000];
+	int cert_len = 0;
+
+	if (!getCertData(rc->self_id, cert_buffer, &cert_len))    //先读取ASUE证书，"demoCA/newcerts/usercert2.pem"
+	{
+		printf("将证书保存到缓存buffer失败!");
+		return FALSE;
+	}
+
+	auth_active_packet->certificatestaae.cer_length = cert_len;   //证书长度字段
+	memcpy((auth_active_packet->certificatestaae.cer_X509),(BYTE*)cert_buffer,strlen((char*)cert_buffer));
+
+
+	//fill ae signature
+	if(annotation == 2)
+		printf("fill ae signature:\n");
+	//AE\u4f7f\u7528AE\u7684\u79c1\u94a5(userkey2.pem)\u6765\u751f\u6210AE\u7b7e\u540d
+	EVP_PKEY * privKey;
+	BYTE sign_value[1024];					//保存签名值的数组
+	unsigned int  sign_len;
+
+	privKey = getprivkeyfromprivkeyfile(rc->self_id);
+	if(privKey == NULL)
+	{
+		printf("getprivkeyitsself().....failed!\n");
+		return FALSE;
+	}
+
+	if(!gen_sign((BYTE *)auth_active_packet,(sizeof(AuthActive)-sizeof(auth_active_packet->aesign)),sign_value, &sign_len,privKey))
+	{
+		printf("generate signature failed.\n");
+		return FALSE;
+	}
+
+	auth_active_packet->aesign.sign.length = sign_len;
+	memcpy(auth_active_packet->aesign.sign.data,sign_value,sign_len);
+
+	return TRUE;
 }
 
+// step3: SIP UA(NVR) - SIP Server
 int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet){
 
 }
 
-//<access auth request packet>
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet){
 
 }
 
+// step4: SIP Server - Radius Server
 int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet){
 
 }
 
-//<access auth response packet>
+// step5: Radius Server - SIP Server
+//?
+
+// step6: SIP Server - SIP UA(NVR)
+int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
+AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet){
+
+}
+// step6+: SIP UA(NVR)
 int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access_auth_requ_packet,
 		AccessAuthResp *access_auth_resp_packet){
 

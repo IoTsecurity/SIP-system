@@ -53,6 +53,7 @@ funcP uas_get_info;				//char *message, char *message_type
 #include <memory.h>
 #include <errno.h>
 #include <pthread.h>
+#include <time.h>
 
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
@@ -129,21 +130,6 @@ typedef struct _byte_data
 	BYTE  length;				     /* \u957f\u5ea6 */
 	BYTE  data[MAX_BYTE_DATA_LEN];	 /* \u5185\u5bb9 */
 }byte_data;
-
-
-/* WAI协议分组基本格式包头 */
-typedef struct _packet_head
-{
-    WORD  version;                   /* 版本号:表示鉴别基础结构的版本号。当前版本为1 */
-    BYTE  type;                      /* 协议类型,1-WAPI,其他值保留*/
-    BYTE  subtype;                   /* 子类型，type字段的值为1时，子类型字段值区分不同分组*/
-    WORD  reserved;                  /* 保留  */
-    WORD  length;                    /* 长度  */
-    WORD  packetnumber;              /* 分组序号 */
-    BYTE  fragmentnumber;            /* 分片序号 */
-    BYTE  identify;                  /* 标识字段的比特0表示后续是否有分片，值为0-表示没有，值为1-表示有，比特1至比特7保留*/
-}packet_head;
-
 
 /* 证书 */
 typedef struct _certificate
@@ -269,10 +255,11 @@ typedef struct _ecdh_param
 /* 鉴别激活分组 */
 typedef struct _auth_active
 {
-	packet_head    wai_packet_head;                             /* WAI协议分组基本格式包头 */
+//	packet_head    wai_packet_head;                             /* WAI协议分组基本格式包头 */
     BYTE           flag;                                      /* 标志FLAG */
     BYTE           authidentify[RAND_LEN];                    /* 鉴别标识 */
 	BYTE		   aechallenge[RAND_LEN];
+	time_t         authactivetime;
 	identity       localasuidentity;                          /* 本地ASU的身份 */
 	ecdh_param     ecdhparam;                                 /* ECDH参数 */
     certificate    certificatestaae;                          /* STAae的证书 */
@@ -283,7 +270,6 @@ typedef struct _auth_active
 /* 接入鉴别请求 */
 typedef struct _access_auth_requ
 {
-	packet_head    wai_packet_head;                             /* WAI协议分组基本格式包头 */
     BYTE             flag;                                        /* 标志 */
     BYTE             authidentify[RAND_LEN];                      /* 鉴别标识 */
     BYTE             asuechallenge[RAND_LEN];                     /* ASUE挑战 */
@@ -298,7 +284,6 @@ typedef struct _access_auth_requ
 /* 证书认证请求分组 */
 typedef struct _certificate_auth_requ
 {
-	packet_head       wai_packet_head;                             /* WAI协议分组基本格式包头 */
     addindex          addid;                                       /* 地址索引 ADDID*/
     BYTE              aechallenge[RAND_LEN];                       /* AE挑战 */
     BYTE              asuechallenge[RAND_LEN];                     /* ASUE挑战 */
@@ -310,7 +295,6 @@ typedef struct _certificate_auth_requ
 /* 证书认证响应分组 */
 typedef struct _certificate_auth_resp
 {
-	packet_head       wai_packet_head;                             /* WAI协议分组基本格式包头 */
     addindex                   addid;                             /* 地址索引ADDID */
     certificate_valid_result   cervalidresult;                    /* 证书验证结果 */
     sign_attribute             asusign;                           /* ASU服务器签名 */
@@ -319,7 +303,6 @@ typedef struct _certificate_auth_resp
 /* 接入鉴别响应 */
 typedef struct _access_auth_resp
 {
-	packet_head 				 wai_packet_head; 				  /* WAI协议分组基本格式包头 */
     BYTE                         flag;                            /* 标识FLAG */
 	BYTE           				 authidentify[RAND_LEN];          /* 鉴别标识 */
     BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
@@ -408,29 +391,35 @@ typedef struct RegisterContext{
 	MACaddr peer_MACaddr;
 	unsigned char auth_id_next[32];
 	unsigned char MK_ID[16];
-	unsigned char self_randnum_next[32];
-	unsigned char peer_randnum_next[32];
+	unsigned char self_randnum_next[RAND_LEN];
+	unsigned char peer_randnum_next[RAND_LEN];
 	unsigned char self_rtp_port;
 	unsigned char self_rtcp_port;
 	unsigned char peer_rtp_port;
 	unsigned char peer_rtcp_port;
-	unsigned char nonce_seed[32];
+	unsigned char nonce_seed[RAND_LEN];
 	KeyRing key_table[MAXKEYRINGS];
 }RegisterContext;
 
-//<auth active packet>
+// step2: SIP Server - SIP UA(NVR)
 int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet);
 
+// step3: SIP UA(NVR) - SIP Server
 int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet);
-
-//<access auth request packet>
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet);
 
+// step4: SIP Server - Radius Server
 int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet);
 
-//<access auth response packet>
+// step5: Radius Server - SIP Server
+//?
+
+// step6: SIP Server - SIP UA(NVR)
+int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
+AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet);
+// step6+: SIP UA(NVR)
 int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access_auth_requ_packet,
 		AccessAuthResp *access_auth_resp_packet);
 
