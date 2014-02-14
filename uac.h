@@ -16,7 +16,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include "interface.h"
+#include "dispatch.h"
 #include <string.h>
 
 #ifndef UAC_H

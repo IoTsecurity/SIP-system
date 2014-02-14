@@ -1,6 +1,6 @@
 #include "csenn_eXosip2.h"
 #include <pthread.h>
-#include "interface.h"
+#include "dispatch.h"
 #ifndef UAS_H
 #define UAS_H
 

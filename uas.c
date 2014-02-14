@@ -1,6 +1,6 @@
 #include "csenn_eXosip2.h"
 #include <pthread.h>
-#include "interface.h"
+#include "dispatch.h"
 
 int handle_invite(eXosip_event_t * g_event)
 {

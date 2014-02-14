@@ -12,7 +12,7 @@
 #include "csenn_eXosip2.h"
 #include "uac.h"
 #include "uas.h"
-#include "interface.h"
+#include "dispatch.h"
 
 /*
 #include <unistd.h>
