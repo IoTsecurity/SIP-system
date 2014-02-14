@@ -193,12 +193,9 @@ int uac_register()
 				printf("<EXOSIP_REGISTRATION_SUCCESS>\r\n");
 				g_register_id = je->rid;/*保存注册成功的注册ID*/
 				printf("g_register_id=%d\r\n", g_register_id);
-				printf("debug1\n");
-				char * message;printf("debug1\n");
+				char * message;
 				osip_body_t *body;
-				printf("debug1\n");
 				osip_message_get_body (je->response, 0, &body);
-				printf("debug2\n");
 				message=(char *)malloc (body->length*sizeof(char));
 				memcpy(message,body->body, body->length);
 				handle_response_data(message);
