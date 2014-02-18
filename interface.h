@@ -390,6 +390,7 @@ typedef struct MACaddr{
 typedef struct RegisterContext{
 	char *radius_id;
 	char *peer_id;
+	char *peer_ip;
 	char *self_id;
 	char *self_password;
 	// enum DeviceType self_type;
