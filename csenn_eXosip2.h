@@ -46,6 +46,8 @@ struct _device_info/*设备信息结构体*/
 	char *device_record;/*是否录像*//*取值范围：ON/OFF*//*默认值：OFF*/
 
 	char * cfgFile;
+	char * radius_id;
+	char * sipserver_id;
 }device_info;
 struct _device_status/*设备状态结构体*/
 {

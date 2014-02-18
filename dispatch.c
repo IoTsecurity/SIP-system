@@ -190,18 +190,43 @@ int uas_close_media()
 
 int handle_401_Unauthorized_data(void *data)
 {
-	printf("handle_401_Unauthorized_data:%s\n",data);
+	//printf("handle_401_Unauthorized_data:%s\n",data);
+
+	//struct  RegisterContext * registerCon;
+	registerCon=(struct  RegisterContext *)malloc(sizeof(struct  RegisterContext));
+
+	registerCon->radius_id=device_info.radius_id;
+	registerCon->peer_id=device_info.server_id;
+	//registerCon->peer_ip=device_info.server_ip;
+	registerCon->self_id=device_info.ipc_id;
+	registerCon->self_password=device_info.ipc_pwd;
+	//registerCon->self_type=;
+
+	//struct  auth_active auth_active_packet;
+	if(HandleWAPIProtocolAuthActive(registerCon,(AuthActive *)data));
+	{
+		return 1;
+	}
 	return 0;}
 
-int get_register2_data(void *data)
+int get_register2_data(void *data,void * in_data)
 {
-	memcpy(data,"+register2_data+", 17);
-	printf("get_register2_data:%s\n",data);
+	//memcpy(data,"+register2_data+", 17);
+	//printf("get_register2_data:%s\n",data);
+	if(ProcessWAPIProtocolAccessAuthRequest
+			(registerCon,(AuthActive *)in_data,(AccessAuthRequ *)data))
+	{
+		return 1;
+	}
 	return 0;}
 
-int handle_response_data(void *data)
+int handle_response_data(void *data,void * in_data)
 {
-	printf("handle_response_data:%s\n",data);
+	//printf("handle_response_data:%s\n",data);
+	if(HandleWAPIProtocolAccessAuthResp(registerCon,(AccessAuthRequ *)in_data, (AccessAuthResp *) data))
+	{
+		return 1;
+	}
 	return 0;}
 
 //end register interface

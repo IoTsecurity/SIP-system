@@ -17,6 +17,7 @@
 #include "dispatch.h"
 #include <string.h>
 
+char *auth_request_packet_data;
 
 int uac_init()
 {
@@ -36,6 +37,12 @@ int uac_init()
 			static  char eXosip_ipc_pwd[20];//             = "123456";//"12345678";//
 			static  char eXosip_ipc_ip[20];//              = "192.168.171.128";
 			static  char eXosip_ipc_port[10];//            = "5060";
+
+			static  char radius_id[50];//            = "5060";
+			static  char sipserver_id[50];//            = "5060";
+
+			get_conf_value("radius_id",radius_id);
+			get_conf_value("sipserver_id",sipserver_id);
 
 			get_conf_value("server_id",eXosip_server_id);
 			//printf("eXosip_server_id:%s\n",eXosip_server_id);
@@ -77,6 +84,8 @@ int uac_init()
 			device_info.ipc_pwd             = eXosip_ipc_pwd;
 			device_info.ipc_ip              = eXosip_ipc_ip;
 			device_info.ipc_port            = eXosip_ipc_port;
+			device_info.radius_id           = radius_id;
+			device_info.sipserver_id            = sipserver_id;
 
 
 			//csenn_eXosip_callback.csenn_eXosip_getDeviceInfo(&device_info);
@@ -164,10 +173,10 @@ int uac_register()
 
 					//add identification
 					//char tmp[DATA_LEN];
-					char *tmp=(char *)malloc(DATA_LEN*sizeof(char));
-					memset(tmp,0, DATA_LEN*sizeof(char));
-					get_register2_data(tmp);
-					osip_message_set_body(reg,tmp,DATA_LEN);
+					auth_request_packet_data=(char *)malloc(DATA_LEN*sizeof(char));
+					memset(auth_request_packet_data,0, DATA_LEN*sizeof(char));
+					get_register2_data(auth_request_packet_data,message);
+					osip_message_set_body(reg,auth_request_packet_data,DATA_LEN);
 					//free(tmp);
 
 
@@ -198,7 +207,7 @@ int uac_register()
 				osip_message_get_body (je->response, 0, &body);
 				message=(char *)malloc (body->length*sizeof(char));
 				memcpy(message,body->body, body->length);
-				handle_response_data(message);
+				handle_response_data(message,auth_request_packet_data);
 
 				/*
 				//send key agreement package  发送密钥协商包
