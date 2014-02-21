@@ -17,7 +17,6 @@
 #include <unistd.h>
 #include <wait.h>
 
-
 #define HOME "./"
 const char *CAID = "0";
 
@@ -363,10 +362,38 @@ void gen_randnum(BYTE *randnum,int randnum_len)
 	SHA256(randnum_seed, randnum_len, randnum);
 }
 
+static int genECDHtemppubkey(EVP_PKEY *pkey)
+{
+	EVP_PKEY_CTX *pctx, *kctx;
+	EVP_PKEY *params = NULL;
+	/* NB: assumes pkey, peerkey have been already set up */
 
+	/* Create the context for parameter generation */
+	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) handleErrors();
 
+	/* Initialise the parameter generation */
+	if(1 != EVP_PKEY_paramgen_init(pctx)) handleErrors();
 
-int getECDHparam(ecdh_param *ecdhparam, const char *oid)
+	/* We're going to use the ANSI X9.62 Prime 256v1 curve */
+	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) handleErrors();
+
+	/* Create the parameter object params */
+	if (!EVP_PKEY_paramgen(pctx, &params)) handleErrors();
+
+	/* Create the context for the key generation */
+	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) handleErrors();
+
+	/* Generate the key */
+	if(1 != EVP_PKEY_keygen_init(kctx)) handleErrors();
+	if (1 != EVP_PKEY_keygen(kctx, &pkey)) handleErrors();
+
+	EVP_PKEY_CTX_free(kctx);
+	EVP_PKEY_free(params);
+	EVP_PKEY_CTX_free(pctx);
+
+	return TRUE;
+}
+static int getECDHparam(ecdh_param *ecdhparam, const char *oid)
 {
 	unsigned char  *buf;
 	int oidlen = 0;
@@ -666,9 +693,6 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 	//fill auth identify, first time random number
 	if(annotation == 2)
 		printf("fill auth identify:\n");
-	/*
-	 * auth_id = SHA256(n_{SIP Server} XOR Password_{SIP UA} XOR Time_{active})
-	 */
 
 	//fill ae rand number
 	if(annotation == 2)
@@ -677,6 +701,20 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 
 	//fill auth active time
 	time(&auth_active_packet->authactivetime);
+
+	/*
+	 * auth_id = SHA256(n_{SIP Server} XOR Password_{SIP UA} XOR Time_{active})
+	 */
+	unsigned char text[RAND_LEN];
+	memset(text, 0, RAND_LEN);
+	int password_len = strlen(rc->peer_password);
+	memcpy(text, rc->peer_password, (password_len>RAND_LEN ? RAND_LEN : password_len));
+	int i;
+	for(i=0; i<RAND_LEN; i++){
+		text[i] ^= auth_active_packet->aechallenge[i];
+		//text[i] ^= ??? auth_active_packet->authactivetime;
+	}
+	SHA256(text, RAND_LEN, auth_active_packet->authidentify);
 
 	//fill local ASU identity
 	if(annotation == 2)
@@ -749,7 +787,7 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 	EVP_PKEY *aepubKey = NULL;
 	BYTE *pTmp = NULL;
 	BYTE deraepubkey[1024];
-	int aepubkeyLen, i;
+	int aepubkeyLen;
 	aepubKey = getpubkeyfromcert(ae_ID);
 	if(aepubKey == NULL){
 		printf("get ae's public key failed.\n");
@@ -786,16 +824,27 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
     	return FALSE;
 
 	//verify auth_id
-    printf("verify auth_id, unfinished!!!\n");
+    printf("verify auth identity.\n");
 	/*
 	 * auth_id = SHA256(n_{SIP Server} XOR Password_{SIP UA} XOR Time_{active})
 	 * then compare
 	 */
+	unsigned char text[RAND_LEN];
+	memset(text, 0, RAND_LEN);
+	int password_len = strlen(rc->self_password);
+	memcpy(text, rc->self_password, (password_len>RAND_LEN ? RAND_LEN : password_len));
+	int i;
+	for(i=0; i<RAND_LEN; i++){
+		text[i] ^= auth_active_packet->aechallenge[i];
+		//text[i] ^= ??? auth_active_packet->authactivetime;
+	}
+	BYTE authidentify[RAND_LEN];
+	SHA256(text, RAND_LEN, authidentify);
 
-	//verify auth identity, is same as before
-	//first time skip this step
-	printf("verify auth identity.\n");
-
+	if(!memcmp(authidentify, auth_active_packet->authidentify, RAND_LEN)){
+		printf("ae's auth identity verify failed.\n");
+		return FALSE;
+	}
 }
 
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
@@ -813,10 +862,11 @@ int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_a
 		gen_randnum((BYTE *)&access_auth_requ_packet->asuechallenge, sizeof(access_auth_requ_packet->aechallenge));
 
 		//fill asue key data
-		printf("fill asue cipher data, unfinished!!!\n");
+		printf("fill asue cipher data.\n");
 		/*
 		 * temporary key for ECDH
 		 */
+		genECDHtemppubkey(&access_auth_requ_packet->asuekeydata);
 
 		//fill ae rand number, same as auth active packet
 		printf("fill ae rand number:\n");
@@ -1112,6 +1162,7 @@ AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet
 	/*
 	 * temporary key for ECDH
 	 */
+	genECDHtemppubkey(&access_auth_resp_packet->aekeydata);
 
 	//fill certificate valid result
 	if(annotation == 2)

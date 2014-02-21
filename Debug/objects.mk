@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -leXosip2
+LIBS := -leXosip2 -lssl -lcrypto
 

@@ -28,6 +28,8 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/ec.h>
+#include <openssl/objects.h>
 
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -237,7 +239,7 @@ typedef struct _access_auth_requ
     BYTE             flag;                                        /* 标志 */
     BYTE             authidentify[RAND_LEN];                      /* 鉴别标识 */
     BYTE             asuechallenge[RAND_LEN];                     /* ASUE挑战 */
-    byte_data        asuekeydata;                                 /* ASUE密钥数据 */
+    EVP_PKEY         asuekeydata;                                 /* ASUE密钥数据 */
 	BYTE			 aechallenge[RAND_LEN];
     identity         staaeidentity;                             /* STAae的身份 */
     ecdh_param       ecdhparam;                                   /* ECDH参数 */
@@ -271,7 +273,7 @@ typedef struct _access_auth_resp
 	BYTE           				 authidentify[RAND_LEN];          /* 鉴别标识 */
     BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
     BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
-	byte_data                    aekeydata;                       /* AE密钥数据 */
+	EVP_PKEY                    aekeydata;                       /* AE密钥数据 */
 	BYTE						 accessresult;					  /* 接入结果 */
 	certificate_valid_result_complex   cervalrescomplex;                /* 复合证书验证结果 */
     sign_attribute               aesign;                          /* AE的签名 */
@@ -346,8 +348,6 @@ void gen_randnum(BYTE *randnum,int randnum_len);
 
 EVP_PKEY * getprivkeyfromprivkeyfile(char *userID);
 
-int getECDHparam(ecdh_param *ecdhparam, const char *oid);
-
 int getLocalIdentity(identity *localIdentity, char *localUserID);
 
 int par_certificate_auth_resp_packet(CertificateAuthRequ * cert_auth_resp_buffer_recv);
@@ -387,6 +387,7 @@ typedef struct RegisterContext{
 	char *peer_ip;
 	char *self_id;
 	char *self_password;
+	char *peer_password;
 	// enum DeviceType self_type;
 	KeyData keydata;
 	MACaddr self_MACaddr;
