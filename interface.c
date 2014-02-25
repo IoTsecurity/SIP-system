@@ -43,10 +43,7 @@ BOOL getCertData(char *userID, BYTE buf[], int *len)
 	char certname[40];
 	memset(certname, '\0', sizeof(certname));//初始化certname,以免后面写如乱码到文件中
 
-	if (strcmp(userID, CAID) == 0)
-		sprintf(certname, "./cacert/cacert.pem");
-	else
-		sprintf(certname, "./cert/usercert%s.pem", userID);
+	sprintf(certname, "./cert/usercert%s.pem", userID);
 
 
 	if(annotation == 2)
@@ -207,10 +204,7 @@ EVP_PKEY *getpubkeyfromcert(char *userID)
 
 	char certname[60];
 	memset(certname, '\0', sizeof(certname)); //初始化certname,以免后面写如乱码到文件中
-	if (strcmp(userID, CAID) == 0)
-		sprintf(certname, "./cacert/cacert.pem"); //./demoCA/
-	else
-		sprintf(certname, "./cert/usercert%s.pem", userID);
+	sprintf(certname, "./cert/usercert%s.pem", userID);
 
 	BIO_read_filename(key,certname);
 	if (!PEM_read_bio_X509(key, &Cert, 0, NULL))
@@ -432,12 +426,7 @@ int getLocalIdentity(identity *localIdentity, char *localUserID)
 	char certname[40];
 	memset(certname, '\0', sizeof(certname));//初始化certname,以免后面写如乱码到文件中
 
-	if (strcmp(localUserID, CAID) == 0)
-		//sprintf(certname, "./demoCA/cacert.pem");//./demoCA/
-		sprintf(certname, "./cacert/cacert.pem");//./demoCA/
-	else
-		//sprintf(certname, "./demoCA/newcerts/usercert%d.pem", certnum);  //终端运行./client
-		sprintf(certname, "./cert/usercert%s.pem", localUserID);                //eclipse调试或运行
+	sprintf(certname, "./cert/usercert%s.pem", localUserID);                //eclipse调试或运行
 
 	if(annotation == 2)
 		printf("  cert file name: %s\n", certname);
