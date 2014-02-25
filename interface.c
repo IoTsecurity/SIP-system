@@ -17,7 +17,6 @@
 #include <unistd.h>
 #include <wait.h>
 
-
 #define HOME "./"
 const char *CAID = "0";
 
@@ -308,7 +307,6 @@ Others:      // 本处注释只是为了大家理解，待理解后，本处注�
 *************************************************/
 //SHA256(input, input_len, output);
 
-
 /*************************************************
 
 Function:    // hmac_sha256
@@ -325,72 +323,16 @@ Return:      // 256bit(32Byte)MAC
 Others:      // 如果想设定输出MAC的长度，可考虑添加一个输出MAC长度的形参
 
 *************************************************/
-void hmac_sha256(
-		const BYTE *text,      /* pointer to data stream        */
-		int        text_len,   /* length of data stream         */
-		const BYTE *key,       /* pointer to authentication key */
-		int        key_len,    /* length of authentication key  */
-		void       *digest)    /* caller digest to be filled in */
+void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key, unsigned int key_len, unsigned char* result, unsigned int result_len)
 {
-	BYTE k_ipad[65]; /* inner padding -
-	                  * key XORd with ipad
-	                  */
-	BYTE k_opad[65]; /* outer padding -
-	                  * key XORd with opad
-	                  */
-	BYTE tk[SHA256_DIGEST_LENGTH];
-	BYTE tk2[SHA256_DIGEST_LENGTH];
-	BYTE bufferIn[1024];
-	BYTE bufferOut[1024];
-	int i;
-	/* if key is longer than 64 bytes reset it to key=sha256(key) */
-	if (key_len > 64)
-	{
-		SHA256(key, key_len, tk);
-		key = tk;
-		key_len = SHA256_DIGEST_LENGTH;
-	}
-	/*
-	 * the HMAC_SHA256 transform looks like:
-	 *
-	 * SHA256(K XOR opad, SHA256(K XOR ipad, text))
-	 *
-	 * where K is an n byte key
-	 * ipad is the byte 0x36 repeated 64 times
-	 * opad is the byte 0x5c repeated 64 times
-	 * and text is the data being protected
-	 */
-	/* start out by storing key in pads */
-	memset(k_ipad, 0, sizeof k_ipad);
-	memset(k_opad, 0, sizeof k_opad);
-	memcpy(k_ipad, key, key_len);
-	memcpy(k_opad, key, key_len);
-
-	/* XOR key with ipad and opad values */
-	for (i = 0; i < 64; i++)
-	{
-		k_ipad[i] ^= 0x36;
-		k_opad[i] ^= 0x5c;
-	}
-	/*
-	 * perform inner SHA256
-	 */
-	memset(bufferIn, 0x00, 1024);
-	memcpy(bufferIn, k_ipad, 64);
-	memcpy(bufferIn + 64, text, text_len);
-	SHA256(bufferIn, 64 + text_len, tk2);
-	/*
-	 * perform outer SHA256
-	 */
-	memset(bufferOut, 0x00, 1024);
-	memcpy(bufferOut, k_opad, 64);
-	memcpy(bufferOut + 64, tk2, SHA256_DIGEST_LENGTH);
-	SHA256(bufferOut, 64 + SHA256_DIGEST_LENGTH, digest);
-}
-
-void KD_hmac_sha256(BYTE *text, unsigned text_len, BYTE *key, unsigned key_len, BYTE *output, unsigned
-length){
-	//
+	HMAC_CTX ctx;
+	HMAC_CTX_init(&ctx);
+        //HMAC_Init_ex(&ctx, key, 16, EVP_sha256(), NULL);
+	HMAC_Init_ex(&ctx, key, key_len, EVP_sha256(), NULL);
+        //HMAC_Update(&ctx, data, 8);
+	HMAC_Update(&ctx, data, data_len);
+        HMAC_Final(&ctx, result, &result_len);
+        HMAC_CTX_cleanup(&ctx);
 }
 
 /*************************************************
@@ -420,10 +362,38 @@ void gen_randnum(BYTE *randnum,int randnum_len)
 	SHA256(randnum_seed, randnum_len, randnum);
 }
 
+static int genECDHtemppubkey(EVP_PKEY *pkey)
+{
+	EVP_PKEY_CTX *pctx, *kctx;
+	EVP_PKEY *params = NULL;
+	/* NB: assumes pkey, peerkey have been already set up */
 
+	/* Create the context for parameter generation */
+	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) handleErrors();
 
+	/* Initialise the parameter generation */
+	if(1 != EVP_PKEY_paramgen_init(pctx)) handleErrors();
 
-int getECDHparam(ecdh_param *ecdhparam, const char *oid)
+	/* We're going to use the ANSI X9.62 Prime 256v1 curve */
+	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) handleErrors();
+
+	/* Create the parameter object params */
+	if (!EVP_PKEY_paramgen(pctx, &params)) handleErrors();
+
+	/* Create the context for the key generation */
+	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) handleErrors();
+
+	/* Generate the key */
+	if(1 != EVP_PKEY_keygen_init(kctx)) handleErrors();
+	if (1 != EVP_PKEY_keygen(kctx, &pkey)) handleErrors();
+
+	EVP_PKEY_CTX_free(kctx);
+	EVP_PKEY_free(params);
+	EVP_PKEY_CTX_free(pctx);
+
+	return TRUE;
+}
+static int getECDHparam(ecdh_param *ecdhparam, const char *oid)
 {
 	unsigned char  *buf;
 	int oidlen = 0;
@@ -723,9 +693,6 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 	//fill auth identify, first time random number
 	if(annotation == 2)
 		printf("fill auth identify:\n");
-	/*
-	 * auth_id = SHA256(n_{SIP Server} XOR Password_{SIP UA} XOR Time_{active})
-	 */
 
 	//fill ae rand number
 	if(annotation == 2)
@@ -734,6 +701,20 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 
 	//fill auth active time
 	time(&auth_active_packet->authactivetime);
+
+	/*
+	 * auth_id = SHA256(n_{SIP Server} XOR Password_{SIP UA} XOR Time_{active})
+	 */
+	unsigned char text[RAND_LEN];
+	memset(text, 0, RAND_LEN);
+	int password_len = strlen(rc->peer_password);
+	memcpy(text, rc->peer_password, (password_len>RAND_LEN ? RAND_LEN : password_len));
+	int i;
+	for(i=0; i<RAND_LEN; i++){
+		text[i] ^= auth_active_packet->aechallenge[i];
+		//text[i] ^= ??? auth_active_packet->authactivetime;
+	}
+	SHA256(text, RAND_LEN, auth_active_packet->authidentify);
 
 	//fill local ASU identity
 	if(annotation == 2)
@@ -806,7 +787,7 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 	EVP_PKEY *aepubKey = NULL;
 	BYTE *pTmp = NULL;
 	BYTE deraepubkey[1024];
-	int aepubkeyLen, i;
+	int aepubkeyLen;
 	aepubKey = getpubkeyfromcert(ae_ID);
 	if(aepubKey == NULL){
 		printf("get ae's public key failed.\n");
@@ -843,16 +824,27 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
     	return FALSE;
 
 	//verify auth_id
-    printf("verify auth_id, unfinished!!!\n");
+    printf("verify auth identity.\n");
 	/*
 	 * auth_id = SHA256(n_{SIP Server} XOR Password_{SIP UA} XOR Time_{active})
 	 * then compare
 	 */
+	unsigned char text[RAND_LEN];
+	memset(text, 0, RAND_LEN);
+	int password_len = strlen(rc->self_password);
+	memcpy(text, rc->self_password, (password_len>RAND_LEN ? RAND_LEN : password_len));
+	int i;
+	for(i=0; i<RAND_LEN; i++){
+		text[i] ^= auth_active_packet->aechallenge[i];
+		//text[i] ^= ??? auth_active_packet->authactivetime;
+	}
+	BYTE authidentify[RAND_LEN];
+	SHA256(text, RAND_LEN, authidentify);
 
-	//verify auth identity, is same as before
-	//first time skip this step
-	printf("verify auth identity.\n");
-
+	if(!memcmp(authidentify, auth_active_packet->authidentify, RAND_LEN)){
+		printf("ae's auth identity verify failed.\n");
+		return FALSE;
+	}
 }
 
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
@@ -870,10 +862,11 @@ int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_a
 		gen_randnum((BYTE *)&access_auth_requ_packet->asuechallenge, sizeof(access_auth_requ_packet->aechallenge));
 
 		//fill asue key data
-		printf("fill asue cipher data, unfinished!!!\n");
+		printf("fill asue cipher data.\n");
 		/*
 		 * temporary key for ECDH
 		 */
+		genECDHtemppubkey(&access_auth_requ_packet->asuekeydata);
 
 		//fill ae rand number, same as auth active packet
 		printf("fill ae rand number:\n");
@@ -1169,6 +1162,7 @@ AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet
 	/*
 	 * temporary key for ECDH
 	 */
+	genECDHtemppubkey(&access_auth_resp_packet->aekeydata);
 
 	//fill certificate valid result
 	if(annotation == 2)

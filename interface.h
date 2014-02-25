@@ -7,12 +7,10 @@
 #ifndef INTERFACE_H
 #define INTERFACE_H
 
-
-
-
 #include <stdio.h>
 #include <stdlib.h>        // for exit
 #include <string.h>        // for bzero
+#include <stdlib.h>
 #include <memory.h>
 #include <errno.h>
 #include <pthread.h>
@@ -24,9 +22,14 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/asn1.h>
+
+#include <openssl/engine.h>
 #include <openssl/hmac.h>
+#include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/ec.h>
+#include <openssl/objects.h>
 
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -236,7 +239,7 @@ typedef struct _access_auth_requ
     BYTE             flag;                                        /* 标志 */
     BYTE             authidentify[RAND_LEN];                      /* 鉴别标识 */
     BYTE             asuechallenge[RAND_LEN];                     /* ASUE挑战 */
-    byte_data        asuekeydata;                                 /* ASUE密钥数据 */
+    EVP_PKEY         asuekeydata;                                 /* ASUE密钥数据 */
 	BYTE			 aechallenge[RAND_LEN];
     identity         staaeidentity;                             /* STAae的身份 */
     ecdh_param       ecdhparam;                                   /* ECDH参数 */
@@ -270,22 +273,13 @@ typedef struct _access_auth_resp
 	BYTE           				 authidentify[RAND_LEN];          /* 鉴别标识 */
     BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
     BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
-	byte_data                    aekeydata;                       /* AE密钥数据 */
+	EVP_PKEY                    aekeydata;                       /* AE密钥数据 */
 	BYTE						 accessresult;					  /* 接入结果 */
 	certificate_valid_result_complex   cervalrescomplex;                /* 复合证书验证结果 */
     sign_attribute               aesign;                          /* AE的签名 */
 }AccessAuthResp;
 
-BOOL getCertData(char *userID, BYTE buf[], int *len);
-
-BOOL writeCertFile(char *userID, BYTE buf[], int len);
-/*************************************************
-Description: // 从数字证书(PEM文件)中读取公钥
-Calls:       // openssl中读PEM文件的API
-Output:      //	数字证书公钥
-*************************************************/
-EVP_PKEY *getpubkeyfromcert(char *userID);
-
+#define SHA256_DIGEST_SIZE 32
 /*************************************************
 
 Function:    // SHA256
@@ -301,7 +295,6 @@ Others:      // 本处注释只是为了大家理解，待理解后，本处注�
 
 *************************************************/
 //SHA256(input, input_len, output);
-
 
 /*************************************************
 
@@ -319,16 +312,19 @@ Return:      // 256bit(32Byte)MAC
 Others:      // 如果想设定输出MAC的长度，可考虑添加一个输出MAC长度的形参
 
 *************************************************/
-void hmac_sha256(
-		const BYTE *text,      /* pointer to data stream        */
-		int        text_len,   /* length of data stream         */
-		const BYTE *key,       /* pointer to authentication key */
-		int        key_len,    /* length of authentication key  */
-		void       *digest);    /* caller digest to be filled in */
+void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key, unsigned int key_len, unsigned char* result, unsigned int result_len);
 
+void KD_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length);
 
-void KD_hmac_sha256(BYTE *text, unsigned text_len, BYTE *key, unsigned key_len, BYTE *output, unsigned
-length);
+BOOL getCertData(char *userID, BYTE buf[], int *len);
+
+BOOL writeCertFile(char *userID, BYTE buf[], int len);
+/*************************************************
+Description: // 从数字证书(PEM文件)中读取公钥
+Calls:       // openssl中读PEM文件的API
+Output:      //	数字证书公钥
+*************************************************/
+EVP_PKEY *getpubkeyfromcert(char *userID);
 
 BOOL gen_sign(BYTE * input,int inputLength,BYTE * sign_value, unsigned int *sign_len,EVP_PKEY * privKey);
 
@@ -351,8 +347,6 @@ Return:      // 256bit(32Byte)MAC
 void gen_randnum(BYTE *randnum,int randnum_len);
 
 EVP_PKEY * getprivkeyfromprivkeyfile(char *userID);
-
-int getECDHparam(ecdh_param *ecdhparam, const char *oid);
 
 int getLocalIdentity(identity *localIdentity, char *localUserID);
 
@@ -393,6 +387,7 @@ typedef struct RegisterContext{
 	char *peer_ip;
 	char *self_id;
 	char *self_password;
+	char *peer_password;
 	// enum DeviceType self_type;
 	KeyData keydata;
 	MACaddr self_MACaddr;
