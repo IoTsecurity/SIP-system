@@ -133,7 +133,7 @@ int uac_register()
 
 		for (;;)
 		{
-			je = eXosip_event_wait(0, 50);/*侦听消息的到来*/
+			je = eXosip_event_wait(10, 500);/*侦听消息的到来*/
 
 			if (NULL == je)/*没有接收到消息*/
 			{
@@ -147,12 +147,20 @@ int uac_register()
 				if ((NULL != je->response)&&(401 == je->response->status_code))
 				{
 					char * message;
-					osip_body_t *body;
+					osip_body_t *body;printf("enter0\n");
 					osip_message_get_body (je->response, 0, &body);
 					message=(char *)malloc (body->length*sizeof(char));
+
 					//snprintf (message, body->length,"%s", body->body);
 					memcpy(message,body->body, body->length);
+					printf("%s",message);
+					decodeFromChar(message,body->length);
+					char p[100];
+					printf("length:%d",body->length);
+					snprintf(p,"%x",message);
+					printf("%s",p);
 					handle_401_Unauthorized_data(message);
+
 					//printf("message:%s\n",message);
 					if(0/*when receive 401Unauthorized package，send ACK and Regester*/)
 						{
@@ -173,10 +181,13 @@ int uac_register()
 
 					//add identification
 					//char tmp[DATA_LEN];
-					auth_request_packet_data=(char *)malloc(DATA_LEN*sizeof(char));
-					memset(auth_request_packet_data,0, DATA_LEN*sizeof(char));
+					//auth_request_packet_data=(char *)malloc(DATA_LEN*sizeof(char));
+					//memset(auth_request_packet_data,0, DATA_LEN*sizeof(char));
 					get_register2_data(auth_request_packet_data,message);
-					osip_message_set_body(reg,auth_request_packet_data,DATA_LEN);
+					char d[6000];
+					memcpy(d,'a',6000);
+					osip_message_set_body(reg,d,100);
+					//osip_message_set_body(reg,auth_request_packet_data,DATA_LEN);
 					//free(tmp);
 
 

@@ -197,11 +197,12 @@ int handle_401_Unauthorized_data(void *data)
 
 	registerCon->radius_id=device_info.radius_id;
 	registerCon->peer_id=device_info.server_id;
-	//registerCon->peer_ip=device_info.server_ip;
+	registerCon->peer_ip=device_info.server_ip;
 	registerCon->self_id=device_info.ipc_id;
 	registerCon->self_password=device_info.ipc_pwd;
 	//registerCon->self_type=;
 
+	printf("registerCon->self_id:%s",registerCon->self_id);
 	//struct  auth_active auth_active_packet;
 	if(HandleWAPIProtocolAuthActive(registerCon,(AuthActive *)data));
 	{
@@ -209,12 +210,14 @@ int handle_401_Unauthorized_data(void *data)
 	}
 	return 0;}
 
-int get_register2_data(void *data,void * in_data)
+int get_register2_data(void **data,void * in_data)
 {
 	//memcpy(data,"+register2_data+", 17);
 	//printf("get_register2_data:%s\n",data);
+	(*data)=(AccessAuthRequ*)malloc(sizeof(AccessAuthRequ));
+	memset(data,0, sizeof(AccessAuthRequ));
 	if(ProcessWAPIProtocolAccessAuthRequest
-			(registerCon,(AuthActive *)in_data,(AccessAuthRequ *)data))
+			(registerCon,(AuthActive *)in_data,(AccessAuthRequ *)(*data)))
 	{
 		return 1;
 	}
@@ -230,3 +233,28 @@ int handle_response_data(void *data,void * in_data)
 	return 0;}
 
 //end register interface
+
+
+int codeTOChar(char *data,int lenth)
+{
+	int i,j;
+	i=lenth-1;
+	j=lenth/2-1;
+	for(i=lenth-1;i>=0;i=i-2,j--)
+	{
+		data[i]=(data[j]&0x0f)+0x30;
+		data[i-1] = ((data[j]>>4)&0x0f)+0x30;
+	}
+	return 0;
+}
+int decodeFromChar(char *data,int lenth)
+{
+	int i,j;
+	i=1;
+	j=0;
+	for(j=0;i<lenth ;i=i+2,j++)
+	{
+		data[j]=(data[i] - 0x30 ) +((data[i-1]-0x30) <<4);
+	}
+	return 0;
+}

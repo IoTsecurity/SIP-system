@@ -85,12 +85,16 @@ int uas_close_media();
 
 int handle_401_Unauthorized_data(void *data);
 
-int get_register2_data(void *data,void * auth_active_packet_data);
+int get_register2_data(void **data,void * auth_active_packet_data);
 
 int handle_response_data(void *data,void *access_auth_request_packet_data);
 
 //end uac uas call interface function
 //////////////////////////////////////////////////////////////
+
+int codeTOChar(char *data,int lenth);
+
+int decodeFromChar(char *data,int lenth);
 
 
 
