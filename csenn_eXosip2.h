@@ -47,7 +47,6 @@ struct _device_info/*设备信息结构体*/
 
 	char * cfgFile;
 	char * radius_id;
-	char * sipserver_id;
 }device_info;
 struct _device_status/*设备状态结构体*/
 {

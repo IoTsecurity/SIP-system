@@ -369,23 +369,23 @@ static int genECDHtemppubkey(EVP_PKEY *pkey)
 	/* NB: assumes pkey, peerkey have been already set up */
 
 	/* Create the context for parameter generation */
-	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) handleErrors();
+	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) ;//handleErrors();
 
 	/* Initialise the parameter generation */
-	if(1 != EVP_PKEY_paramgen_init(pctx)) handleErrors();
+	if(1 != EVP_PKEY_paramgen_init(pctx)) ;//handleErrors();
 
 	/* We're going to use the ANSI X9.62 Prime 256v1 curve */
-	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) handleErrors();
+	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) ;//handleErrors();
 
 	/* Create the parameter object params */
-	if (!EVP_PKEY_paramgen(pctx, &params)) handleErrors();
+	if (!EVP_PKEY_paramgen(pctx, &params)) ;//handleErrors();
 
 	/* Create the context for the key generation */
-	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) handleErrors();
+	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) ;//handleErrors();
 
 	/* Generate the key */
-	if(1 != EVP_PKEY_keygen_init(kctx)) handleErrors();
-	if (1 != EVP_PKEY_keygen(kctx, &pkey)) handleErrors();
+	if(1 != EVP_PKEY_keygen_init(kctx)) ;//handleErrors();
+	if (1 != EVP_PKEY_keygen(kctx, &pkey)) ;//handleErrors();
 
 	EVP_PKEY_CTX_free(kctx);
 	EVP_PKEY_free(params);

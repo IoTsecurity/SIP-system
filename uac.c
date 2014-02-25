@@ -39,10 +39,9 @@ int uac_init()
 			static  char eXosip_ipc_port[10];//            = "5060";
 
 			static  char radius_id[50];//            = "5060";
-			static  char sipserver_id[50];//            = "5060";
+			//static  char sipserver_id[50];//            = "5060";
 
 			get_conf_value("radius_id",radius_id);
-			get_conf_value("sipserver_id",sipserver_id);
 
 			get_conf_value("server_id",eXosip_server_id);
 			//printf("eXosip_server_id:%s\n",eXosip_server_id);
@@ -85,7 +84,6 @@ int uac_init()
 			device_info.ipc_ip              = eXosip_ipc_ip;
 			device_info.ipc_port            = eXosip_ipc_port;
 			device_info.radius_id           = radius_id;
-			device_info.sipserver_id            = sipserver_id;
 
 
 			//csenn_eXosip_callback.csenn_eXosip_getDeviceInfo(&device_info);

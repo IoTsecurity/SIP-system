@@ -258,3 +258,39 @@ int decodeFromChar(char *data,int lenth)
 	}
 	return 0;
 }
+
+int init_conf(char * file)
+{
+
+	int fd=open(file,O_RDONLY);
+	    if(fd>2){   //确保文件存在
+	    	//static  char * cfgFile ;
+	    	//cfgFile=(char *)malloc(sizeof(char)*30);
+	    	//strcpy(cfgFile,file);
+	    	//device_info.cfgFile=cfgFile;
+	    	char *value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "radius_id",value,file);
+	    	RegisterCon->radius_id=value;
+
+	    	value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "self_id",value,file);
+	    	RegisterCon->self_id=value;
+
+	    	value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "self_password",value,file);
+	    	RegisterCon->self_password=value;
+
+	    	value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "self_type", value,file);
+	    	if(strcmp(value,"SIPserver")==0)
+	    		Self_type=SIPserver;
+
+	        close(fd);
+	        printf("open config file:%s success\n",file);
+	    }
+	    else{
+	       printf("can not open config file:%s\n",file);
+	       exit(1);
+	    }
+	return 0;
+	}
