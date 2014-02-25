@@ -74,10 +74,7 @@ BOOL writeCertFile(char *userID, BYTE buf[], int len)
 	char certname[40];
 	memset(certname, '\0', sizeof(certname));//初始化certname,以免后面写如乱码到文件中
 
-	if (strcmp(userID, CAID) == 0)
-		sprintf(certname, "./cacert/cacert.pem");
-	else
-		sprintf(certname, "./cert/usercert%s.pem", userID);
+	sprintf(certname, "./cert/usercert%s.pem", userID);
 
 	if(annotation == 2)
 		printf("  cert file name: %s\n", certname);
@@ -88,7 +85,7 @@ BOOL writeCertFile(char *userID, BYTE buf[], int len)
 		printf("open cert file failed!\n");
 		return FALSE;
 	}
-	int res = fwrite(buf, 1, len, fp);
+	fwrite(buf, 1, len, fp);
 	if(annotation == 2)
 		printf("  cert's length is %d\n", len);
 	fclose(fp);
@@ -173,17 +170,12 @@ Others:      // 本函数不要与getprivkeyfromprivkeyfile混淆，本函数为
 
 RSA * getprivkeyfromkeyfile(char *userID)
 {
-	EVP_PKEY * Key;
-	FILE* fp;
 	//RSA rsa_struct;
 	RSA* rsa;
 
 	char keyname[40];
 
-	if (strcmp(userID, CAID) == 0)
-		sprintf(keyname, "./private/cakey.pem");
-	else
-		sprintf(keyname, "./private/userkey%s.pem", userID);
+	sprintf(keyname, "./private/userkey%s.pem", userID);
 
 	BIO * in = BIO_new_file(keyname, "rb");
 	if (in == NULL )
@@ -333,6 +325,18 @@ void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key,
 	HMAC_Update(&ctx, data, data_len);
         HMAC_Final(&ctx, result, &result_len);
         HMAC_CTX_cleanup(&ctx);
+}
+
+void KD_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length)
+{
+	int i;
+	for(i=0; length/SHA256_DIGEST_SIZE; i++,length-=SHA256_DIGEST_SIZE){
+		hmac_sha256(text,text_len,key,key_len,&output[i*SHA256_DIGEST_SIZE],SHA256_DIGEST_SIZE);
+		text=&output[i*SHA256_DIGEST_SIZE];
+		text_len=SHA256_DIGEST_SIZE;
+	}
+	if(length>0)
+		hmac_sha256(text,text_len,key,key_len,&output[i*SHA256_DIGEST_SIZE],length);
 }
 
 /*************************************************
@@ -497,7 +501,6 @@ BOOL gen_sign(BYTE * input,int sign_input_len,BYTE * sign_value, unsigned int *s
 	EVP_MD_CTX mdctx;						//摘要算法上下文变量
 
 	unsigned int temp_sign_len;
-	unsigned int i;
 	BYTE sign_input_buffer[10000];
 
 
@@ -1214,7 +1217,7 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 		EVP_PKEY *aepubKey = NULL;
 		BYTE *pTmp = NULL;
 		BYTE deraepubkey[1024];
-		int aepubkeyLen, i;
+		int aepubkeyLen;
 		char *ae_ID = rc->peer_id;
 		aepubKey = getpubkeyfromcert(ae_ID);
 		if(aepubKey == NULL){
