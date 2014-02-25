@@ -23,8 +23,8 @@ extern int call_type;
 extern int invite_user_type;
 extern int invite_type;
 
-RegisterContext * registerCon;
-extern RegisterContext * registerCon;
+RegisterContext * RegisterCon;
+extern RegisterContext * RegisterCon;
 
 #define USER_TYPE_IPC 		1
 #define USER_TYPE_CLIENT 		2
@@ -96,6 +96,6 @@ int codeTOChar(char *data,int lenth);
 
 int decodeFromChar(char *data,int lenth);
 
-
+int init_Contextconf(char * file);
 
 #endif /* DISPATCH_H_ */

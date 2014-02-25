@@ -43,10 +43,7 @@ BOOL getCertData(char *userID, BYTE buf[], int *len)
 	char certname[40];
 	memset(certname, '\0', sizeof(certname));//初始化certname,以免后面写如乱码到文件中
 
-	if (strcmp(userID, CAID) == 0)
-		sprintf(certname, "./cacert/cacert.pem");
-	else
-		sprintf(certname, "./cert/usercert%s.pem", userID);
+	sprintf(certname, "./cert/usercert%s.pem", userID);
 
 
 	if(annotation == 2)
@@ -74,10 +71,7 @@ BOOL writeCertFile(char *userID, BYTE buf[], int len)
 	char certname[40];
 	memset(certname, '\0', sizeof(certname));//初始化certname,以免后面写如乱码到文件中
 
-	if (strcmp(userID, CAID) == 0)
-		sprintf(certname, "./cacert/cacert.pem");
-	else
-		sprintf(certname, "./cert/usercert%s.pem", userID);
+	sprintf(certname, "./cert/usercert%s.pem", userID);
 
 	if(annotation == 2)
 		printf("  cert file name: %s\n", certname);
@@ -88,7 +82,7 @@ BOOL writeCertFile(char *userID, BYTE buf[], int len)
 		printf("open cert file failed!\n");
 		return FALSE;
 	}
-	int res = fwrite(buf, 1, len, fp);
+	fwrite(buf, 1, len, fp);
 	if(annotation == 2)
 		printf("  cert's length is %d\n", len);
 	fclose(fp);
@@ -173,17 +167,12 @@ Others:      // 本函数不要与getprivkeyfromprivkeyfile混淆，本函数为
 
 RSA * getprivkeyfromkeyfile(char *userID)
 {
-	EVP_PKEY * Key;
-	FILE* fp;
 	//RSA rsa_struct;
 	RSA* rsa;
 
 	char keyname[40];
 
-	if (strcmp(userID, CAID) == 0)
-		sprintf(keyname, "./private/cakey.pem");
-	else
-		sprintf(keyname, "./private/userkey%s.pem", userID);
+	sprintf(keyname, "./private/userkey%s.pem", userID);
 
 	BIO * in = BIO_new_file(keyname, "rb");
 	if (in == NULL )
@@ -215,10 +204,7 @@ EVP_PKEY *getpubkeyfromcert(char *userID)
 
 	char certname[60];
 	memset(certname, '\0', sizeof(certname)); //初始化certname,以免后面写如乱码到文件中
-	if (strcmp(userID, CAID) == 0)
-		sprintf(certname, "./cacert/cacert.pem"); //./demoCA/
-	else
-		sprintf(certname, "./cert/usercert%s.pem", userID);
+	sprintf(certname, "./cert/usercert%s.pem", userID);
 
 	BIO_read_filename(key,certname);
 	if (!PEM_read_bio_X509(key, &Cert, 0, NULL))
@@ -335,6 +321,18 @@ void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key,
         HMAC_CTX_cleanup(&ctx);
 }
 
+void KD_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length)
+{
+	int i;
+	for(i=0; length/SHA256_DIGEST_SIZE; i++,length-=SHA256_DIGEST_SIZE){
+		hmac_sha256(text,text_len,key,key_len,&output[i*SHA256_DIGEST_SIZE],SHA256_DIGEST_SIZE);
+		text=&output[i*SHA256_DIGEST_SIZE];
+		text_len=SHA256_DIGEST_SIZE;
+	}
+	if(length>0)
+		hmac_sha256(text,text_len,key,key_len,&output[i*SHA256_DIGEST_SIZE],length);
+}
+
 /*************************************************
 
 Function:    // gen_randnum
@@ -369,23 +367,23 @@ static int genECDHtemppubkey(EVP_PKEY *pkey)
 	/* NB: assumes pkey, peerkey have been already set up */
 
 	/* Create the context for parameter generation */
-	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) ;//handleErrors();
+	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) printf("error in genECDHtemppubkey\n");
 
 	/* Initialise the parameter generation */
-	if(1 != EVP_PKEY_paramgen_init(pctx)) ;//handleErrors();
+	if(1 != EVP_PKEY_paramgen_init(pctx)) printf("error in genECDHtemppubkey\n");
 
 	/* We're going to use the ANSI X9.62 Prime 256v1 curve */
-	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) ;//handleErrors();
+	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) printf("error in genECDHtemppubkey\n");
 
 	/* Create the parameter object params */
-	if (!EVP_PKEY_paramgen(pctx, &params)) ;//handleErrors();
+	if (!EVP_PKEY_paramgen(pctx, &params)) printf("error in genECDHtemppubkey\n");
 
 	/* Create the context for the key generation */
-	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) ;//handleErrors();
+	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) printf("error in genECDHtemppubkey\n");
 
 	/* Generate the key */
-	if(1 != EVP_PKEY_keygen_init(kctx)) ;//handleErrors();
-	if (1 != EVP_PKEY_keygen(kctx, &pkey)) ;//handleErrors();
+	if(1 != EVP_PKEY_keygen_init(kctx)) printf("error in genECDHtemppubkey\n");
+	if (1 != EVP_PKEY_keygen(kctx, &pkey)) printf("error in genECDHtemppubkey\n");
 
 	EVP_PKEY_CTX_free(kctx);
 	EVP_PKEY_free(params);
@@ -428,12 +426,7 @@ int getLocalIdentity(identity *localIdentity, char *localUserID)
 	char certname[40];
 	memset(certname, '\0', sizeof(certname));//初始化certname,以免后面写如乱码到文件中
 
-	if (strcmp(localUserID, CAID) == 0)
-		//sprintf(certname, "./demoCA/cacert.pem");//./demoCA/
-		sprintf(certname, "./cacert/cacert.pem");//./demoCA/
-	else
-		//sprintf(certname, "./demoCA/newcerts/usercert%d.pem", certnum);  //终端运行./client
-		sprintf(certname, "./cert/usercert%s.pem", localUserID);                //eclipse调试或运行
+	sprintf(certname, "./cert/usercert%s.pem", localUserID);                //eclipse调试或运行
 
 	if(annotation == 2)
 		printf("  cert file name: %s\n", certname);
@@ -497,7 +490,6 @@ BOOL gen_sign(BYTE * input,int sign_input_len,BYTE * sign_value, unsigned int *s
 	EVP_MD_CTX mdctx;						//摘要算法上下文变量
 
 	unsigned int temp_sign_len;
-	unsigned int i;
 	BYTE sign_input_buffer[10000];
 
 
@@ -841,10 +833,11 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 	BYTE authidentify[RAND_LEN];
 	SHA256(text, RAND_LEN, authidentify);
 
-	if(!memcmp(authidentify, auth_active_packet->authidentify, RAND_LEN)){
+	if(memcmp(authidentify, auth_active_packet->authidentify, RAND_LEN)){
 		printf("ae's auth identity verify failed.\n");
 		return FALSE;
 	}
+	return TRUE;
 }
 
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
@@ -1214,7 +1207,7 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 		EVP_PKEY *aepubKey = NULL;
 		BYTE *pTmp = NULL;
 		BYTE deraepubkey[1024];
-		int aepubkeyLen, i;
+		int aepubkeyLen;
 		char *ae_ID = rc->peer_id;
 		aepubKey = getpubkeyfromcert(ae_ID);
 		if(aepubKey == NULL){
