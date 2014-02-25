@@ -833,10 +833,11 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 	BYTE authidentify[RAND_LEN];
 	SHA256(text, RAND_LEN, authidentify);
 
-	if(!memcmp(authidentify, auth_active_packet->authidentify, RAND_LEN)){
+	if(memcmp(authidentify, auth_active_packet->authidentify, RAND_LEN)){
 		printf("ae's auth identity verify failed.\n");
 		return FALSE;
 	}
+	return TRUE;
 }
 
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
