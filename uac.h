@@ -22,7 +22,8 @@
 #ifndef UAC_H
 #define UAC_H
 
-
+char *auth_request_packet_data;
+extern char *auth_request_packet_data;
 
 /*================================================================
 * funtion name：uac_init
@@ -70,7 +71,7 @@ int uac_send_message(sessionId inviteId,char * type ,
 int getlocalip(char* outip);
 
 //get the key_value from the configure file by the key_name
-int get_conf_value( char *key_name, char *value);
+int get_conf_value( char *key_name, char *value,char *filename);
 
 //init the configure file
 int init_conf(char * file);

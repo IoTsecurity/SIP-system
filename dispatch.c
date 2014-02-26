@@ -216,23 +216,27 @@ int handle_401_Unauthorized_data(void *data)
 
 	printf("registerCon->self_id:%s",RegisterCon->self_id);
 	//struct  auth_active auth_active_packet;
-	if(HandleWAPIProtocolAuthActive(RegisterCon,(AuthActive *)data));
+
+	if(!HandleWAPIProtocolAuthActive(RegisterCon,(AuthActive *)data));
 	{
 		return 1;
 	}
+
 	return 0;}
 
-int get_register2_data(void **data,void * in_data)
+int get_register2_data(char *data,char * in_data)
 {
 	//memcpy(data,"+register2_data+", 17);
 	//printf("get_register2_data:%s\n",data);
-	(*data)=(AccessAuthRequ*)malloc(sizeof(AccessAuthRequ));
-	memset(data,0, sizeof(AccessAuthRequ));
-	if(ProcessWAPIProtocolAccessAuthRequest
-			(RegisterCon,(AuthActive *)in_data,(AccessAuthRequ *)(*data)))
+
+	//AccessAuthRequ *data2=(char*)malloc(sizeof(AccessAuthRequ)*2);
+	if(!ProcessWAPIProtocolAccessAuthRequest(RegisterCon,(AuthActive *)in_data,(AccessAuthRequ *)(data)))
 	{
+		printf("ProcessWAPIProtocolAccessAuthRequest error\n");
 		return 1;
 	}
+
+	printf("ProcessWAPIProtocolAccessAuthRequest success\n");
 	return 0;}
 
 int handle_response_data(void *data,void * in_data)
@@ -247,7 +251,7 @@ int handle_response_data(void *data,void * in_data)
 //end register interface
 
 
-int codeTOChar(char *data,int lenth)
+int codeToChar(char *data,int lenth)
 {
 	int i,j;
 	i=lenth-1;
@@ -273,7 +277,7 @@ int decodeFromChar(char *data,int lenth)
 
 int init_Contextconf(char * file)
 {
-	RegisterCon=(struct  RegisterContext *)malloc(sizeof(struct  RegisterContext));
+	RegisterCon=(RegisterContext *)malloc(sizeof(RegisterContext));
 
 	int fd=open(file,O_RDONLY);
 	    if(fd>2){   //确保文件存在

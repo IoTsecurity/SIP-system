@@ -16,18 +16,13 @@
 
 #include "dispatch.h"
 #include <string.h>
+#include "uac.h"
 
-char *auth_request_packet_data;
 
 int uac_init()
 {
 	printf("start\n");
-	//if(device_info.cfgFile==NULL)
-	//{
-		//static  char cfgFile[30]="default.cfg";
-		//device_info.cfgFile="default.cfg";
-		//init_conf("default.cfg");
-	//}
+
 	interface_init();
 			csenn_eXosip_launch();
 			static  char eXosip_server_id[30];//           = "34020000001180000002";
@@ -60,7 +55,7 @@ int uac_init()
 			//printf("eXosip_ipc_port:%s\n",eXosip_ipc_port);
 
 			char user_type_temp[20];
-			get_conf_value("self_type",user_type_temp);
+			get_conf_value("self_type",user_type_temp,device_info.cfgFile);
 
 			if(strcmp(user_type_temp,"IPC")==0)
 			{
@@ -85,6 +80,8 @@ int uac_init()
 			device_info.ipc_port            = eXosip_ipc_port;
 			device_info.radius_id           = radius_id;
 
+
+			auth_request_packet_data=NULL;
 
 			//csenn_eXosip_callback.csenn_eXosip_getDeviceInfo(&device_info);
 			while (csenn_eXosip_init());
@@ -144,20 +141,20 @@ int uac_register()
 				/*收到服务器返回的注册失败/401未认证状态*/
 				if ((NULL != je->response)&&(401 == je->response->status_code))
 				{
-					char * message;
+					char * auth_active_packet_data=NULL;
 					osip_body_t *body;printf("enter0\n");
 					osip_message_get_body (je->response, 0, &body);
-					message=(char *)malloc (body->length*sizeof(char));
+					printf("body->length:%d\n",body->length);
+					if(!auth_active_packet_data)
+					{
+						free(auth_active_packet_data);
+						auth_active_packet_data=NULL;
+					}
+					auth_active_packet_data=(char *)malloc (body->length*sizeof(char));
 
-					//snprintf (message, body->length,"%s", body->body);
-					memcpy(message,body->body, body->length);
-					printf("%s",message);
-					decodeFromChar(message,body->length);
-					//char p[100];
-					//printf("length:%d",body->length);
-					//snprintf(p,"%x",message);
-					//printf("%s",p);
-					handle_401_Unauthorized_data(message);
+					memcpy(auth_active_packet_data,body->body, body->length);
+					decodeFromChar(auth_active_packet_data,body->length);
+					handle_401_Unauthorized_data(auth_active_packet_data);
 
 					//printf("message:%s\n",message);
 					if(0/*when receive 401Unauthorized package，send ACK and Regester*/)
@@ -176,18 +173,33 @@ int uac_register()
 					eXosip_add_authentication_info(device_info.ipc_id, device_info.ipc_id, device_info.ipc_pwd, "MD5", NULL);/*添加主叫用户的认证信息*/
 					eXosip_register_build_register(je->rid, expires, &reg);
 
+					if(!auth_request_packet_data)
+					{
 
-					//add identification
-					//char tmp[DATA_LEN];
-					//auth_request_packet_data=(char *)malloc(DATA_LEN*sizeof(char));
-					//memset(auth_request_packet_data,0, DATA_LEN*sizeof(char));
-					get_register2_data(auth_request_packet_data,message);
-					char d[6000];
-					memcpy(d,'a',6000);
-					osip_message_set_body(reg,d,100);
+						free(auth_request_packet_data);
+						auth_request_packet_data=NULL;
+					}
+
+					auth_request_packet_data=(AccessAuthRequ*)malloc(sizeof(AccessAuthRequ)*2);
+
+					memset(auth_request_packet_data,0, sizeof(AccessAuthRequ)*2);
+
+					get_register2_data(auth_request_packet_data,auth_active_packet_data);
+					//printf("enter2\n");
+					codeToChar(auth_request_packet_data,sizeof(AccessAuthRequ)*2);
+					//printf("%s",auth_request_packet_data);
+
+					//char *d=(char *)malloc(sizeof(char)*600);printf("enter11\n");
+					//memset(d,0,600);printf("enter2\n");
+					printf("length:%d",(sizeof(AuthActive)*2));
+					printf("length:%d",(sizeof(AccessAuthRequ)*2));
+					printf("length:%d",(sizeof(CertificateAuthRequ)*2));
+					printf("length:%d",sizeof(CertificateAuthResp)*2);
+					printf("length:%d",sizeof(AccessAuthResp)*2);
+					osip_message_set_body(reg,auth_request_packet_data,sizeof(AccessAuthRequ)*2);
+
 					//osip_message_set_body(reg,auth_request_packet_data,DATA_LEN);
 					//free(tmp);
-
 
 					ret = eXosip_register_send_register(je->rid, reg);
 					eXosip_unlock();

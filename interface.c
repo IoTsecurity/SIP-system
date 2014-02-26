@@ -842,6 +842,7 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet){
+
 		//fill flag
 		printf("fill flag:\n");
 		access_auth_requ_packet->flag = 0x04;

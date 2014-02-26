@@ -73,7 +73,7 @@ int main(int argc,char *argv[])
 					uac_get_Playsdp(send_sdp_data);
 					char *default_invite;
 					default_invite=(char *)malloc(sizeof(char)* 100);
-					get_conf_value("default_invite",default_invite);
+					get_conf_value("default_invite",default_invite,device_info.cfgFile);
 					//printf("default_invite:%s\n",default_invite);
 					uac_invite(&inviteId,default_invite,//"34020000001310000051@192.168.17.1:5060",
 							send_sdp_data,recieve_sdp_data);
