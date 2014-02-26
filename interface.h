@@ -314,7 +314,7 @@ Others:      // 如果想设定输出MAC的长度，可考虑添加一个输出M
 *************************************************/
 void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key, unsigned int key_len, unsigned char* result, unsigned int result_len);
 
-void KD_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length);
+void kd_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length);
 
 BOOL getCertData(char *userID, BYTE buf[], int *len);
 
@@ -361,26 +361,38 @@ int par_certificate_auth_resp_packet(CertificateAuthRequ * cert_auth_resp_buffer
 enum DeviceType{
 	IPC,
 	SIPserver,
-	NVR
+	NVR,
+	Client
 };
 enum DeviceType Self_type;
 
-typedef struct KeyData{
-	//
-}KeyData;
+enum ConnectStatus{
+	NolinkNosession,
+	LinkNosession,
+	LinkSession
+};
+
+#define KEYLENGTH 16
+#define MAXKEYRINGS 10
+
 typedef struct KeyRing{
-	char *key_partner_id;
-	unsigned char MasterKey[16];
-	unsigned char CK[16];
-	unsigned char IK[16];
-	unsigned char KEK[16];
-	unsigned char reauth_IK[16];
+	char *partner_id;
+	unsigned char MasterKey[KEYLENGTH];
+	unsigned char CK[KEYLENGTH];
+	unsigned char IK[KEYLENGTH];
+	unsigned char KEK[KEYLENGTH];
+	unsigned char reauth_IK[KEYLENGTH];
 }KeyRing;
+
+typedef struct KeyBox{
+	KeyRing keyrings[MAXKEYRINGS];
+	int nkeys;
+}KeyBox;
+
 typedef struct MACaddr{
 	char macaddr[MAC_LEN];
 }MACaddr;
 
-#define MAXKEYRINGS 10
 typedef struct RegisterContext{
 	char *radius_id;
 	char *peer_id;
@@ -388,8 +400,7 @@ typedef struct RegisterContext{
 	char *self_id;
 	char *self_password;
 	char *peer_password;
-	// enum DeviceType self_type;
-	KeyData keydata;
+	EVP_PKEY keydata;
 	MACaddr self_MACaddr;
 	MACaddr peer_MACaddr;
 	unsigned char auth_id_next[32];
@@ -401,7 +412,7 @@ typedef struct RegisterContext{
 	unsigned char peer_rtp_port;
 	unsigned char peer_rtcp_port;
 	unsigned char nonce_seed[RAND_LEN];
-	KeyRing key_table[MAXKEYRINGS];
+	KeyBox keybox;
 }RegisterContext;
 
 // step2: SIP Server - SIP UA(NVR)
