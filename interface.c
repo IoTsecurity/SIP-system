@@ -37,6 +37,17 @@ static int annotation = 2;  //1-lvshichao,2-yaoyao
 
 const time_t TimeThreshold = 10; // seconds
 
+static int getKeyRingNum(KeyBox *keybox, char *id)
+{
+	int i;
+	for(i=0; i < keybox->nkeys; i++){
+		if(!strcmp(keybox->keyrings[i].partner_id, id)){
+			return i;
+		}
+	}
+	return -1;
+}
+
 BOOL getCertData(char *userID, BYTE buf[], int *len)
 {
 	FILE *fp;
@@ -321,7 +332,7 @@ void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key,
         HMAC_CTX_cleanup(&ctx);
 }
 
-void KD_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length)
+void kd_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length)
 {
 	int i;
 	for(i=0; length/SHA256_DIGEST_SIZE; i++,length-=SHA256_DIGEST_SIZE){
@@ -360,37 +371,73 @@ void gen_randnum(BYTE *randnum,int randnum_len)
 	SHA256(randnum_seed, randnum_len, randnum);
 }
 
-static int genECDHtemppubkey(EVP_PKEY *pkey)
+static EVP_PKEY *genECDHtemppubkey()
 {
 	EVP_PKEY_CTX *pctx, *kctx;
+	EVP_PKEY *pkey = NULL;
 	EVP_PKEY *params = NULL;
 	/* NB: assumes pkey, peerkey have been already set up */
 
 	/* Create the context for parameter generation */
-	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) printf("error in genECDHtemppubkey\n");
+	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) printf("Error in genECDHtemppubkey\n");
 
 	/* Initialise the parameter generation */
-	if(1 != EVP_PKEY_paramgen_init(pctx)) printf("error in genECDHtemppubkey\n");
+	if(1 != EVP_PKEY_paramgen_init(pctx)) printf("Error in genECDHtemppubkey\n");
 
 	/* We're going to use the ANSI X9.62 Prime 256v1 curve */
 	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) printf("error in genECDHtemppubkey\n");
 
 	/* Create the parameter object params */
-	if (!EVP_PKEY_paramgen(pctx, &params)) printf("error in genECDHtemppubkey\n");
+	if (!EVP_PKEY_paramgen(pctx, &params)) printf("Error in genECDHtemppubkey\n");
 
 	/* Create the context for the key generation */
-	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) printf("error in genECDHtemppubkey\n");
+	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) printf("Error in genECDHtemppubkey\n");
 
 	/* Generate the key */
-	if(1 != EVP_PKEY_keygen_init(kctx)) printf("error in genECDHtemppubkey\n");
-	if (1 != EVP_PKEY_keygen(kctx, &pkey)) printf("error in genECDHtemppubkey\n");
+	if(1 != EVP_PKEY_keygen_init(kctx)) printf("Error in genECDHtemppubkey\n");
+	if (1 != EVP_PKEY_keygen(kctx, &pkey)) printf("Error in genECDHtemppubkey\n");
 
 	EVP_PKEY_CTX_free(kctx);
 	EVP_PKEY_free(params);
 	EVP_PKEY_CTX_free(pctx);
 
-	return TRUE;
+	return pkey;
 }
+
+static unsigned char *genECDHsharedsecret(EVP_PKEY *pkey, EVP_PKEY *peerkey, size_t *secret_len)
+{
+		EVP_PKEY_CTX *ctx;
+		unsigned char *secret;
+
+		/* Get the peer's public key, and provide the peer with our public key -
+		 * how this is done will be specific to your circumstances */
+		// one of input parameters
+
+		/* Create the context for the shared secret derivation */
+		if(NULL == (ctx = EVP_PKEY_CTX_new(pkey, NULL))) printf("Error in genECDHsharedsecret\n");
+
+		/* Initialise */
+		if(1 != EVP_PKEY_derive_init(ctx)) printf("Error in genECDHsharedsecret\n");
+
+		/* Provide the peer public key */
+		if(1 != EVP_PKEY_derive_set_peer(ctx, peerkey)) printf("Error in genECDHsharedsecret\n");
+
+		/* Determine buffer length for shared secret */
+		if(1 != EVP_PKEY_derive(ctx, NULL, secret_len)) printf("Error in genECDHsharedsecret\n");
+
+		/* Create the buffer */
+		if(NULL == (secret = OPENSSL_malloc(*secret_len))) printf("Error in genECDHsharedsecret\n");
+
+		/* Derive the shared secret */
+		if(1 != (EVP_PKEY_derive(ctx, secret, secret_len))) printf("Error in genECDHsharedsecret\n");
+
+		EVP_PKEY_CTX_free(ctx);
+
+		/* Never use a derived secret directly. Typically it is passed
+		 * through some hash function to produce a key */
+		return secret;
+}
+
 static int getECDHparam(ecdh_param *ecdhparam, const char *oid)
 {
 	unsigned char  *buf;
@@ -729,7 +776,7 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 	BYTE cert_buffer[5000];
 	int cert_len = 0;
 
-	if (!getCertData(rc->self_id, cert_buffer, &cert_len))    //先读取ASUE证书，"demoCA/newcerts/usercert2.pem"
+	if (!getCertData(rc->self_id, cert_buffer, &cert_len))    //先读取ASUE证书
 	{
 		printf("将证书保存到缓存buffer失败!");
 		return FALSE;
@@ -860,7 +907,8 @@ int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_a
 		/*
 		 * temporary key for ECDH
 		 */
-		genECDHtemppubkey(&access_auth_requ_packet->asuekeydata);
+		memcpy(&rc->keydata, genECDHtemppubkey(), sizeof(rc->keydata));
+		memcpy(&access_auth_requ_packet->asuekeydata, &rc->keydata, sizeof(access_auth_requ_packet->asuekeydata));
 
 		//fill ae rand number, same as auth active packet
 		printf("fill ae rand number:\n");
@@ -883,7 +931,7 @@ int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_a
 		BYTE cert_buffer[5000];
 		int cert_len = 0;
 
-		if (!getCertData(rc->self_id, cert_buffer, &cert_len))	  //先读取ASUE证书，"demoCA/newcerts/usercert2.pem"
+		if (!getCertData(rc->self_id, cert_buffer, &cert_len))	  //先读取ASUE证书
 		{
 			printf("将证书保存到缓存buffer失败!");
 			return FALSE;
@@ -1059,6 +1107,9 @@ CertificateAuthRequ *certificate_auth_requ_packet){
 }
 
 // step5: Radius Server - SIP Server
+// implemented source files on Radius Server
+
+// step6: SIP Server - SIP UA(NVR)
 int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
 CertificateAuthRequ *certificate_auth_requ_packet,
 CertificateAuthResp *certificate_auth_resp_packet,
@@ -1127,7 +1178,6 @@ AccessAuthResp *access_auth_resp_packet){
 
 }
 
-// step6: SIP Server - SIP UA(NVR)
 int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
 AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet){
 	//fill flag, same as access auth requ packet
@@ -1152,11 +1202,12 @@ AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet
 
 	//fill ae key data
 	if(annotation == 2)
-		printf("fill ae cipher data, unfinished!!!\n");
+		printf("fill ae cipher data:\n");
 	/*
 	 * temporary key for ECDH
 	 */
-	genECDHtemppubkey(&access_auth_resp_packet->aekeydata);
+	memcpy(&rc->keydata, genECDHtemppubkey(), sizeof(rc->keydata));
+	memcpy(&access_auth_resp_packet->aekeydata, &rc->keydata, sizeof(access_auth_resp_packet->aekeydata));
 
 	//fill certificate valid result
 	if(annotation == 2)
@@ -1197,8 +1248,39 @@ AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet
 	access_auth_resp_packet->aesign.sign.length = sign_len;
 	memcpy(access_auth_resp_packet->aesign.sign.data,sign_value,sign_len);
 
+	// compute MasterKey and auth_id_next
+	/*
+	 * [MasterKey, auth_id_next_seed] = KD-HMAC-SHA256(ECDH_keydata,
+	 *                    n_SIPServer || n_SIPUA || "masterkeyexpansionforkeyandadditionalnonce")
+	 * auth_id_next = SHA256(auth_id_next_seed)
+	 */
+	unsigned char *ECDH_keydata; // shared secret
+	size_t secretlen=KEYLENGTH;
+	ECDH_keydata = genECDHsharedsecret(&rc->keydata, &access_auth_requ_packet->asuekeydata, &secretlen);
+
+	char *tempstring = "masterkeyexpansionforkeyandadditionalnonce";
+	int outputlen = sizeof(rc->keybox.keyrings[0].MasterKey) + sizeof(rc->auth_id_next);
+	int textlen = sizeof(access_auth_requ_packet->aechallenge) +
+			sizeof(access_auth_requ_packet->asuechallenge) +
+			strlen(tempstring);
+	unsigned char *output = malloc(outputlen);
+	unsigned char *text = malloc(textlen);
+	kd_hmac_sha256(text, textlen, ECDH_keydata, KEYLENGTH, output, outputlen);
+
+	int i;
+	if( (i=getKeyRingNum(&rc->keybox, rc->self_id)) < 0 ){
+		strcpy(rc->keybox.keyrings[rc->keybox.nkeys].partner_id, rc->self_id);
+		i = rc->keybox.nkeys;
+		rc->keybox.nkeys++;
+	}
+	memcpy(rc->keybox.keyrings[i].MasterKey, output, sizeof(rc->keybox.keyrings[i].MasterKey));
+	SHA256(output+sizeof(rc->keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
+	free(output);
+	free(text);
+
 	return TRUE;
 }
+
 // step6+: SIP UA(NVR)
 int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access_auth_requ_packet,
 		AccessAuthResp *access_auth_resp_packet){
@@ -1251,17 +1333,19 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 		printf("verify ASUE, AE rand number:\n");
 		if(memcmp(access_auth_resp_packet->asuechallenge,
 			access_auth_requ_packet->asuechallenge,
-			sizeof(access_auth_resp_packet->asuechallenge)) != 0){
+			sizeof(access_auth_resp_packet->asuechallenge)) != 0)
+		{
 			printf("verify ASUE random number failed!\n");
 			return FALSE;
-			}
+		}
 
 		if(memcmp(access_auth_resp_packet->aechallenge,
 			access_auth_requ_packet->aechallenge,
-			sizeof(access_auth_resp_packet->aechallenge)) != 0){
+			sizeof(access_auth_resp_packet->aechallenge)) != 0)
+		{
 			printf("verify AE random number failed!\n");
 			return FALSE;
-			}
+		}
 
 		//verify auth identity is same as access auth requ packet
 		printf("verify auth identity:\n");
@@ -1321,12 +1405,35 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 
 		printf("Authentication succeed!!\n");
 
-		//compute master key, auth_id_next
-		printf("compute master key, auth_id_next, unfinished!!!\n");
+		// compute MasterKey and auth_id_next
 		/*
-		 * rc->key_table[0].MasterKey
-		 * rc->auth_id_next
+		 * [MasterKey, auth_id_next_seed] = KD-HMAC-SHA256(ECDH_keydata,
+		 *                    n_SIPServer || n_SIPUA || "masterkeyexpansionforkeyandadditionalnonce")
+		 * auth_id_next = SHA256(auth_id_next_seed)
 		 */
+		unsigned char *ECDH_keydata; // shared secret
+		size_t secretlen = KEYLENGTH;
+		ECDH_keydata = genECDHsharedsecret(&rc->keydata, &access_auth_resp_packet->aekeydata, &secretlen);
+
+		char *tempstring = "masterkeyexpansionforkeyandadditionalnonce";
+		int outputlen = sizeof(rc->keybox.keyrings[0].MasterKey) + sizeof(rc->auth_id_next);
+		int textlen = sizeof(access_auth_requ_packet->aechallenge) +
+				sizeof(access_auth_requ_packet->asuechallenge) +
+				strlen(tempstring);
+		unsigned char *output = malloc(outputlen);
+		unsigned char *text = malloc(textlen);
+		kd_hmac_sha256(text, textlen, ECDH_keydata, KEYLENGTH, output, outputlen);
+
+		int i;
+		if( (i=getKeyRingNum(&rc->keybox, rc->self_id)) < 0 ){
+			strcpy(rc->keybox.keyrings[rc->keybox.nkeys].partner_id, rc->self_id);
+			i = rc->keybox.nkeys;
+			rc->keybox.nkeys++;
+		}
+		memcpy(rc->keybox.keyrings[i].MasterKey, output, sizeof(rc->keybox.keyrings[i].MasterKey));
+		SHA256(output+sizeof(rc->keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
+		free(output);
+		free(text);
 
 		return TRUE;
 }
