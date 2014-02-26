@@ -322,6 +322,8 @@ int init_Contextconf(char * file)
 	    	get_conf_value( "self_password",value,file);
 	    	RegisterCon->self_password=value;
 
+	    	RegisterCon->keybox.nkeys=0;
+
 	    	if(Self_type!=SIPserver)
 	    	{
 	    		value=(char *)malloc(sizeof(char)*20);

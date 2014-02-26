@@ -123,10 +123,7 @@ EVP_PKEY * getprivkeyfromprivkeyfile(char *userID)
 	RSA* rsa;
 	char keyname[40];
 
-	if (strcmp(userID, CAID) == 0)
-		sprintf(keyname, "./private/cakey.pem");
-	else
-		sprintf(keyname, "./private/userkey%s.pem", userID);
+	sprintf(keyname, "./private/userkey%s.pem", userID);
 	fp = fopen(keyname, "r");
 
 	if(annotation == 2)
@@ -537,10 +534,10 @@ BOOL gen_sign(BYTE * input,int sign_input_len,BYTE * sign_value, unsigned int *s
 	EVP_MD_CTX mdctx;						//摘要算法上下文变量
 
 	unsigned int temp_sign_len;
-	BYTE sign_input_buffer[10000];
+	//BYTE sign_input_buffer[10000];
+	BYTE *sign_input_buffer = (BYTE *)malloc(sign_input_len);
 
-
-	memset(sign_input_buffer,0,sizeof(sign_input_buffer));
+	memset(sign_input_buffer,0,sign_input_len);
 	memcpy(sign_input_buffer,input,sign_input_len);    //sign_inputLength为签名算法输入长度，为所传入分组的除签名字段外的所有字段
 
 	//以下是计算签名代码
@@ -579,7 +576,9 @@ BOOL gen_sign(BYTE * input,int sign_input_len,BYTE * sign_value, unsigned int *s
 	printf("\n");
 */
 	//清理内存
+	free(sign_input_buffer);
 	EVP_MD_CTX_cleanup(&mdctx);
+
 	return TRUE;
 }
 
@@ -1025,7 +1024,7 @@ int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_ac
 
 	//verify AE identity
 	if(annotation == 2)
-		printf("verify AE identity, unfinished!!!\n");
+		printf("verify AE identity\n");
 	identity localaeidentity;
 	getLocalIdentity(&localaeidentity, rc->self_id);
 
@@ -1088,13 +1087,14 @@ CertificateAuthRequ *certificate_auth_requ_packet){
 	unsigned int  sign_len;
 
 	privKey = getprivkeyfromprivkeyfile(rc->self_id);
+
 	if(privKey == NULL)
 	{
 		printf("getprivkeyitsself().....failed!\n");
 		return FALSE;
 	}
 
-	if(!gen_sign( (BYTE *)certificate_auth_requ_packet, sizeof(certificate_auth_requ_packet)-sizeof(certificate_auth_requ_packet->aesign),sign_value, &sign_len,privKey ))
+	if(!gen_sign( (BYTE *)certificate_auth_requ_packet, sizeof(CertificateAuthRequ)-sizeof(certificate_auth_requ_packet->aesign),sign_value, &sign_len,privKey ))
 	{
 		printf("generate signature failed.\n");
 		return FALSE;
