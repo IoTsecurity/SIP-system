@@ -10,8 +10,19 @@
 #include <string.h>        // for bzero
 #include <memory.h>
 
+
+#include<sys/types.h>
+#include<fcntl.h>
+#include<net/if.h>
+#include<net/if_arp.h>
+#include<sys/ioctl.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include<netdb.h>
+
 #include "dispatch.h"
 #include "interface.h"
+
 /*
 int uas_function_run(funcP fun_name,void(*arg))
 {
@@ -28,6 +39,8 @@ int interface_init()
 
 	invite_user_type=0;
 	invite_type=0;
+
+	init_Contextconf(device_info.cfgFile);
 /*
 	uas_handle_invite_sdp=uas_handle_Playsdp;
 	uas_get_invite_sdp=uas_get_Playsdp;
@@ -36,7 +49,7 @@ int interface_init()
 	uas_stop_transport=uas_close_Playmedia;
 	*/
 	//uas_get_info=uas_get_message;
-	return 0;
+	return 1;
 }
 
 int uac_get_sdp(char *sdp_data)
@@ -50,11 +63,11 @@ int uac_get_sdp(char *sdp_data)
 		else if(call_type==CALL_TYPE_PLAYBACK)
 			;//uac_get_Historysdp(sdp_data);
 		else
-			return -1;
+			return 0;
 	}
 	else
-		return -1;
-	return 0;
+		return 0;
+	return 1;
 	}
 
 int uac_handle_sdp(char *sdp_data)
@@ -68,11 +81,11 @@ int uac_handle_sdp(char *sdp_data)
 		else if(call_type==CALL_TYPE_PLAYBACK)
 			;//uac_handle_Historysdp(sdp_data);
 		else
-			return -1;
+			return 0;
 	}
 	else
-		return -1;
-	return 0;
+		return 0;
+	return 1;
 }
 
 int uac_start_media(char * peer_location)
@@ -86,11 +99,11 @@ int uac_start_media(char * peer_location)
 		else if(call_type==CALL_TYPE_PLAYBACK)
 			;//uac_receive_Historymedia(peer_location);
 		else
-			return -1;
+			return 0;
 	}
 	else
-		return -1;
-	return 0;
+		return 0;
+	return 1;
 	}
 
 int uac_close_media()
@@ -104,11 +117,11 @@ int uac_close_media()
 		else if(call_type==CALL_TYPE_PLAYBACK)
 			;//uac_close_Historymedia();
 		else
-			return -1;
+			return 0;
 	}
 	else
-		return -1;
-	return 0;
+		return 0;
+	return 1;
 }
 
 //uas
@@ -124,11 +137,11 @@ int uas_handle_sdp(char *sdp_data)
 		else if(invite_type==INVITE_TYPE_PLAYBACK)
 			;//uas_handle_Historysdp(sdp_data);
 		else
-			return -1;
+			return 0;
 	}
 	else
-		return -1;
-	return 0;}
+		return 0;
+	return 1;}
 
 int uas_get_sdp(char *sdp_data)
 {
@@ -141,11 +154,11 @@ int uas_get_sdp(char *sdp_data)
 		else if(invite_type==INVITE_TYPE_PLAYBACK)
 			;//uas_get_Historysdp(sdp_data);
 		else
-			return -1;
+			return 0;
 	}
 	else
-		return -1;
-	return 0;}
+		return 0;
+	return 1;}
 
 int uas_start_media(char *peer_location)
 {
@@ -159,11 +172,11 @@ int uas_start_media(char *peer_location)
 		else if(invite_type==INVITE_TYPE_PLAYBACK)
 			;//uas_send_Historymedia(peer_location);
 		else
-			return -1;
+			return 0;
 	}
 	else
-		return -1;
-	return 0;}
+		return 0;
+	return 1;}
 
 int uas_close_media()
 {
@@ -177,11 +190,11 @@ int uas_close_media()
 		else if(invite_type==INVITE_TYPE_PLAYBACK)
 			;//uas_close_Historymedia();
 		else
-			return -1;
+			return 0;
 	}
 	else
-		return -1;
-	return 0;}
+		return 0;
+	return 1;}
 
 //end uas interface
 
@@ -193,18 +206,17 @@ int handle_401_Unauthorized_data(void *data)
 	//printf("handle_401_Unauthorized_data:%s\n",data);
 
 	//struct  RegisterContext * registerCon;
-	registerCon=(struct  RegisterContext *)malloc(sizeof(struct  RegisterContext));
 
-	registerCon->radius_id=device_info.radius_id;
-	registerCon->peer_id=device_info.server_id;
-	registerCon->peer_ip=device_info.server_ip;
-	registerCon->self_id=device_info.ipc_id;
-	registerCon->self_password=device_info.ipc_pwd;
+	//RegisterCon->radius_id=device_info.radius_id;
+	//RegisterCon->peer_id=device_info.server_id;
+	//RegisterCon->peer_ip=device_info.server_ip;
+	//RegisterCon->self_id=device_info.ipc_id;
+	//RegisterCon->self_password=device_info.ipc_pwd;
 	//registerCon->self_type=;
 
-	printf("registerCon->self_id:%s",registerCon->self_id);
+	printf("registerCon->self_id:%s",RegisterCon->self_id);
 	//struct  auth_active auth_active_packet;
-	if(HandleWAPIProtocolAuthActive(registerCon,(AuthActive *)data));
+	if(HandleWAPIProtocolAuthActive(RegisterCon,(AuthActive *)data));
 	{
 		return 1;
 	}
@@ -217,7 +229,7 @@ int get_register2_data(void **data,void * in_data)
 	(*data)=(AccessAuthRequ*)malloc(sizeof(AccessAuthRequ));
 	memset(data,0, sizeof(AccessAuthRequ));
 	if(ProcessWAPIProtocolAccessAuthRequest
-			(registerCon,(AuthActive *)in_data,(AccessAuthRequ *)(*data)))
+			(RegisterCon,(AuthActive *)in_data,(AccessAuthRequ *)(*data)))
 	{
 		return 1;
 	}
@@ -226,7 +238,7 @@ int get_register2_data(void **data,void * in_data)
 int handle_response_data(void *data,void * in_data)
 {
 	//printf("handle_response_data:%s\n",data);
-	if(HandleWAPIProtocolAccessAuthResp(registerCon,(AccessAuthRequ *)in_data, (AccessAuthResp *) data))
+	if(HandleWAPIProtocolAccessAuthResp(RegisterCon,(AccessAuthRequ *)in_data, (AccessAuthResp *) data))
 	{
 		return 1;
 	}
@@ -245,7 +257,7 @@ int codeTOChar(char *data,int lenth)
 		data[i]=(data[j]&0x0f)+0x30;
 		data[i-1] = ((data[j]>>4)&0x0f)+0x30;
 	}
-	return 0;
+	return 1;
 }
 int decodeFromChar(char *data,int lenth)
 {
@@ -256,5 +268,73 @@ int decodeFromChar(char *data,int lenth)
 	{
 		data[j]=(data[i] - 0x30 ) +((data[i-1]-0x30) <<4);
 	}
-	return 0;
+	return 1;
 }
+
+int init_Contextconf(char * file)
+{
+	RegisterCon=(struct  RegisterContext *)malloc(sizeof(struct  RegisterContext));
+
+	int fd=open(file,O_RDONLY);
+	    if(fd>2){   //确保文件存在
+	    	//static  char * cfgFile ;
+	    	//cfgFile=(char *)malloc(sizeof(char)*30);
+	    	//strcpy(cfgFile,file);
+	    	//device_info.cfgFile=cfgFile;
+
+	    	char *value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "radius_id",value,file);
+	    	RegisterCon->radius_id=value;
+
+	    	value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "self_type", value,file);
+	    	if(strcmp(value,"SIPserver")==0)
+	    	{
+	    		Self_type=SIPserver;
+	    	}
+	    	else if(strcmp(value,"IPC")==0)
+	    	{
+	    		Self_type=IPC;
+	    		//user_type=USER_TYPE_IPC;
+	    	}
+	    		else if(strcmp(value,"CLIENT")==0)
+	    	{
+	    		//Self_type=CLIENT;
+	    		//user_type=USER_TYPE_CLIENT;
+	    	}
+	    		else if(strcmp(value,"NVR")==0)
+	    	{
+	    		Self_type=NVR;
+	    		//user_type=USER_TYPE_NVR;
+	    	}
+
+	    	free(value);
+
+	    	value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "self_id",value,file);
+	    	RegisterCon->self_id=value;
+
+	    	value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "self_password",value,file);
+	    	RegisterCon->self_password=value;
+
+	    	if(Self_type!=SIPserver)
+	    	{
+	    		value=(char *)malloc(sizeof(char)*20);
+	    		get_conf_value("server_ip",value,file);
+	    		RegisterCon->peer_ip=value;
+
+	    		value=(char *)malloc(sizeof(char)*20);
+	    		get_conf_value("server_id",value,file);
+	    		RegisterCon->peer_id=value;
+	    	}
+
+	        close(fd);
+	        printf("open config file:%s success\n",file);
+	    }
+	    else{
+	       printf("can not open config file:%s\n",file);
+	       exit(1);
+	    }
+	return 1;
+	}

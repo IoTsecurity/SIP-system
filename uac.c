@@ -39,29 +39,28 @@ int uac_init()
 			static  char eXosip_ipc_port[10];//            = "5060";
 
 			static  char radius_id[50];//            = "5060";
-			static  char sipserver_id[50];//            = "5060";
+			//static  char sipserver_id[50];//            = "5060";
 
-			get_conf_value("radius_id",radius_id);
-			get_conf_value("sipserver_id",sipserver_id);
+			get_conf_value("radius_id",radius_id,device_info.cfgFile);
 
-			get_conf_value("server_id",eXosip_server_id);
+			get_conf_value("server_id",eXosip_server_id,device_info.cfgFile);
 			//printf("eXosip_server_id:%s\n",eXosip_server_id);
-			get_conf_value("server_ip",eXosip_server_ip);
+			get_conf_value("server_ip",eXosip_server_ip,device_info.cfgFile);
 			//printf("eXosip_server_ip:%s\n",eXosip_server_ip);
-			get_conf_value("server_port",eXosip_server_port);
+			get_conf_value("server_port",eXosip_server_port,device_info.cfgFile);
 			//printf("eXosip_server_port:%s\n",eXosip_server_port);
 
-			get_conf_value("client_id",eXosip_ipc_id);
+			get_conf_value("self_id",eXosip_ipc_id,device_info.cfgFile);
 			//printf("eXosip_ipc_id:%s\n",eXosip_ipc_id);
-			get_conf_value("client_pwd",eXosip_ipc_pwd);
+			get_conf_value("self_password",eXosip_ipc_pwd,device_info.cfgFile);
 			//printf("eXosip_ipc_pwd:%s\n",eXosip_ipc_pwd);
-			get_conf_value("client_ip",eXosip_ipc_ip);
+			get_conf_value("self_ip",eXosip_ipc_ip,device_info.cfgFile);
 			//printf("eXosip_ipc_ip:%s\n",eXosip_ipc_ip);
-			get_conf_value("client_port",eXosip_ipc_port);
+			get_conf_value("self_port",eXosip_ipc_port,device_info.cfgFile);
 			//printf("eXosip_ipc_port:%s\n",eXosip_ipc_port);
 
 			char user_type_temp[20];
-			get_conf_value("user_type",user_type_temp);
+			get_conf_value("self_type",user_type_temp);
 
 			if(strcmp(user_type_temp,"IPC")==0)
 			{
@@ -85,7 +84,6 @@ int uac_init()
 			device_info.ipc_ip              = eXosip_ipc_ip;
 			device_info.ipc_port            = eXosip_ipc_port;
 			device_info.radius_id           = radius_id;
-			device_info.sipserver_id            = sipserver_id;
 
 
 			//csenn_eXosip_callback.csenn_eXosip_getDeviceInfo(&device_info);
@@ -155,10 +153,10 @@ int uac_register()
 					memcpy(message,body->body, body->length);
 					printf("%s",message);
 					decodeFromChar(message,body->length);
-					char p[100];
-					printf("length:%d",body->length);
-					snprintf(p,"%x",message);
-					printf("%s",p);
+					//char p[100];
+					//printf("length:%d",body->length);
+					//snprintf(p,"%x",message);
+					//printf("%s",p);
 					handle_401_Unauthorized_data(message);
 
 					//printf("message:%s\n",message);
@@ -361,9 +359,9 @@ int getlocalip(char* outip)
 
 }
 
-int get_conf_value( char *key_name, char *value)
+int get_conf_value( char *key_name, char *value,char *filename)
 {
-	char * file=device_info.cfgFile;
+	char * file=filename;//device_info.cfgFile;
     int res;
     int fd = open(file,O_RDONLY);
     if(fd > 2){
