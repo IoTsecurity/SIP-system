@@ -39,20 +39,20 @@
 
 #define CHAT_SERVER_PORT    (1111)
 
-
 #define MAC_LEN                  6           /* MAC地址长度 */
+#define RAND_LEN                 32          /* 随机数长度 */
+#define SHA256_DIGEST_SIZE       32
+#define KEY_LEN                  16
+
 #define MAX_COMM_DATA_LEN        65535       /* 通用数据的最大长度 */
 #define MAX_X509_DATA_LEN        1024 * 4    /* 存放X509DER编解码缓冲的最大长度 */
 #define MAX_BYTE_DATA_LEN        256	     /* 最大字节数据长度 */
-#define RAND_LEN                 32          /* 随机数长度 */
-
 #define MAX_IDENTITY_NUMBER      16          /* 身份列表最大身份个数 */
 //#define USER_DN_SIZE             16          /* 认证服务器的每个用户(客户端)的DN(distinguished name)长度 */
 #define USER_AMOUNT_MAX          10          /* 认证服务器支持的最大用户(客户端)数量 */
 
 #define NOT_LOGIN    (-1)
 #define NOT_IN_USE    (NOT_LOGIN -1)
-
 #define    NO_COMMAND    (100)
 
 /************************************************************
@@ -68,7 +68,6 @@
 #define SESSION_KEY_NEG_REQU    (8)
 #define SESSION_KEY_NEG_RESP    (9)
 #define SESSION_KEY_NEG_ACK     (10)
-
 #define REQUEST_CERTIFICATE       (11) //client send to the server,for requesting a new certificate,i.e a certificate request
 #define ISSUE_CERTIFICATE         (12) //server send to the client,after signing the new certificate
 #define SEARCH_CERTIFICATE        (13) //client send to the server,for searching for a certificate
@@ -103,11 +102,8 @@ typedef struct _certificate
     WORD                  cer_identify;                         /* 证书标识 */
     WORD                  cer_length;                           /* 证书长度 */
 
-//	struct
-//	{//X.509证书结构体
-//		//X.509证书DER编解码数据定义，数据长度为cer_length  当证书格式为X.509时采用
+    //X.509证书结构体,DER编解码数据定义，数据长度为cer_length  当证书格式为X.509时采用
 	BYTE                 cer_X509[MAX_X509_DATA_LEN];          /* X.509证书DER编解码流 */
-//	};
 }certificate;
 
 //身份的DER数据
@@ -122,8 +118,8 @@ typedef struct _identity
     WORD             identity_identify;           /* 身份标识 */
     WORD             identity_length;             /* 身份长度 */
 
-	struct
-	{//X509身份
+    //X509身份
+	struct{
 		der_identity     cer_der;                     /* DER身份数据 */
 	};
 }identity;
@@ -149,12 +145,9 @@ typedef struct _sign_arithmetic
     WORD      length;               /* 长度字段 */
     BYTE      hash_identify;        /* 杂凑算法标识 */
     BYTE      sign_identify;        /*  签名算法标识 */
-
     BYTE      param_identify;      /*  参数标识 */
     WORD      param_length;        /*  参数长度 */
-
     oid_param   oid;               /* OID 方式参数 */
-
 }sign_arithmetic;
 
 //签名数据
@@ -200,7 +193,6 @@ typedef struct _identity_list
     BYTE         type;                                      /* 身份列表类型（3）*/
     WORD         length;                                    /* 身份列表长度 */
     BYTE         reserved;                                  /* 保留 */
-
     WORD         identitynumber;                            /* 身份个数 */
     identity     identityset[MAX_IDENTITY_NUMBER];          /* 身份列表 */
 }identity_list;
@@ -210,108 +202,14 @@ typedef struct _ecdh_param
 {
     BYTE     param_identify;               /*  \u53c2\u6570\u6807\u8bc6 */
     WORD     param_length;                 /*  \u53c2\u6570\u957f\u5ea6 */
-
     oid_param   oid;                       /* OID \u65b9\u5f0f\u53c2\u6570 */
-
 }ecdh_param;
 
-/************************************************************
-*WAI认证协议于认证服务器直接相关的证书认证请求分组和证书认证响应分组
-*************************************************************/
-/* 鉴别激活分组 */
-typedef struct _auth_active
-{
-//	packet_head    wai_packet_head;                             /* WAI协议分组基本格式包头 */
-    BYTE           flag;                                      /* 标志FLAG */
-    BYTE           authidentify[RAND_LEN];                    /* 鉴别标识 */
-	BYTE		   aechallenge[RAND_LEN];
-	time_t         authactivetime;
-	identity       localasuidentity;                          /* 本地ASU的身份 */
-	ecdh_param     ecdhparam;                                 /* ECDH参数 */
-    certificate    certificatestaae;                          /* STAae的证书 */
-    sign_attribute aesign;                                      /* AE的签名 */
 
-}AuthActive;
-
-/* 接入鉴别请求 */
-typedef struct _access_auth_requ
-{
-    BYTE             flag;                                        /* 标志 */
-    BYTE             authidentify[RAND_LEN];                      /* 鉴别标识 */
-    BYTE             asuechallenge[RAND_LEN];                     /* ASUE挑战 */
-    EVP_PKEY         asuekeydata;                                 /* ASUE密钥数据 */
-	BYTE			 aechallenge[RAND_LEN];
-    identity         staaeidentity;                             /* STAae的身份 */
-    ecdh_param       ecdhparam;                                   /* ECDH参数 */
-    certificate      certificatestaasue;                          /* STAasue证书 */
-    sign_attribute   asuesign;                                    /* ASUE的签名 */
-}AccessAuthRequ;
-
-/* 证书认证请求分组 */
-typedef struct _certificate_auth_requ
-{
-    addindex          addid;                                       /* 地址索引 ADDID*/
-    BYTE              aechallenge[RAND_LEN];                       /* AE挑战 */
-    BYTE              asuechallenge[RAND_LEN];                     /* ASUE挑战 */
-    certificate       staasuecer;                                  /* STAasue的证书 */
-    certificate       staaecer;                                    /* STAae的证书 */
-    sign_attribute    aesign;                                      /* AE的签名 */
-}CertificateAuthRequ;
-
-/* 证书认证响应分组 */
-typedef struct _certificate_auth_resp
-{
-    addindex                   addid;                             /* 地址索引ADDID */
-    certificate_valid_result   cervalidresult;                    /* 证书验证结果 */
-    sign_attribute             asusign;                           /* ASU服务器签名 */
-}CertificateAuthResp;
-
-/* 接入鉴别响应 */
-typedef struct _access_auth_resp
-{
-    BYTE                         flag;                            /* 标识FLAG */
-	BYTE           				 authidentify[RAND_LEN];          /* 鉴别标识 */
-    BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
-    BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
-	EVP_PKEY                    aekeydata;                       /* AE密钥数据 */
-	BYTE						 accessresult;					  /* 接入结果 */
-	certificate_valid_result_complex   cervalrescomplex;                /* 复合证书验证结果 */
-    sign_attribute               aesign;                          /* AE的签名 */
-}AccessAuthResp;
-
-#define SHA256_DIGEST_SIZE 32
-/*************************************************
-
-Function:    // SHA256
-Description: // SHA256散列函数
-Calls:       // openssl SHA256的API函数
-Called By:   //
-Input:	     //	input---待计算摘要的输入数据
-                input_len---待计算摘要的输入数据长度
-                output---摘要结果输出
-Output:      //	摘要值
-Return:      // 256bit(32Byte)摘要
-Others:      // 本处注释只是为了大家理解，待理解后，本处注释可删除
-
-*************************************************/
+// Return 32Byte digest
 //SHA256(input, input_len, output);
 
-/*************************************************
-
-Function:    // hmac_sha256
-Description: // WAPI消息认证MAC算法
-Calls:       // openssl SHA256的API函数
-Called By:   // 待添加！！！
-Input:	     //	text---待计算MAC的输入数据
-                text_len---待计算MAC的输入数据长度
-                key---hmac密钥
-                key_len---hmac密钥长度
-                digest---输出MAC值
-Output:      //	MAC值
-Return:      // 256bit(32Byte)MAC
-Others:      // 如果想设定输出MAC的长度，可考虑添加一个输出MAC长度的形参
-
-*************************************************/
+// Return 32Byte digest
 void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key, unsigned int key_len, unsigned char* result, unsigned int result_len);
 
 void kd_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length);
@@ -319,9 +217,9 @@ void kd_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *k
 BOOL getCertData(char *userID, BYTE buf[], int *len);
 
 BOOL writeCertFile(char *userID, BYTE buf[], int len);
+
 /*************************************************
 Description: // 从数字证书(PEM文件)中读取公钥
-Calls:       // openssl中读PEM文件的API
 Output:      //	数字证书公钥
 *************************************************/
 EVP_PKEY *getpubkeyfromcert(char *userID);
@@ -329,7 +227,6 @@ EVP_PKEY *getpubkeyfromcert(char *userID);
 BOOL gen_sign(BYTE * input,int inputLength,BYTE * sign_value, unsigned int *sign_len,EVP_PKEY * privKey);
 
 /*************************************************
-Calls:       // openssl验证签名的API
 Input:	     //	input---待验证签名的整个数据包
                 sign_input_len---待验证签名的有效数据字段的长度，并非整个input长度
                 sign_value---签名字段
@@ -342,15 +239,13 @@ BOOL verify_sign(BYTE *input,int sign_input_len,BYTE * sign_value, unsigned int 
 
 /*************************************************
 Calls:       // openssl SHA256的API函数以及RAND_bytes函数
-Return:      // 256bit(32Byte)MAC
+Return:      // 32Byte MAC
 *************************************************/
 void gen_randnum(BYTE *randnum,int randnum_len);
 
 EVP_PKEY * getprivkeyfromprivkeyfile(char *userID);
 
 int getLocalIdentity(identity *localIdentity, char *localUserID);
-
-int par_certificate_auth_resp_packet(CertificateAuthRequ * cert_auth_resp_buffer_recv);
 
 /////////////////////////// filled by yaoyao ///////////////////////////////////
 /* Scene 1 :
@@ -372,16 +267,14 @@ enum ConnectStatus{
 	LinkSession
 };
 
-#define KEYLENGTH 16
 #define MAXKEYRINGS 10
-
 typedef struct KeyRing{
 	char *partner_id;
-	unsigned char MasterKey[KEYLENGTH];
-	unsigned char CK[KEYLENGTH];
-	unsigned char IK[KEYLENGTH];
-	unsigned char KEK[KEYLENGTH];
-	unsigned char reauth_IK[KEYLENGTH];
+	unsigned char MasterKey[KEY_LEN];
+	unsigned char CK[KEY_LEN];
+	unsigned char IK[KEY_LEN];
+	unsigned char KEK[KEY_LEN];
+	unsigned char reauth_IK[KEY_LEN];
 }KeyRing;
 
 typedef struct KeyBox{
@@ -390,7 +283,7 @@ typedef struct KeyBox{
 }KeyBox;
 
 typedef struct MACaddr{
-	char macaddr[MAC_LEN];
+	unsigned char macaddr[MAC_LEN];
 }MACaddr;
 
 typedef struct RegisterContext{
@@ -403,42 +296,102 @@ typedef struct RegisterContext{
 	EVP_PKEY keydata;
 	MACaddr self_MACaddr;
 	MACaddr peer_MACaddr;
-	unsigned char auth_id_next[32];
-	unsigned char MK_ID[16];
-	unsigned char self_randnum_next[RAND_LEN];
-	unsigned char peer_randnum_next[RAND_LEN];
+	unsigned char auth_id_next[SHA256_DIGEST_SIZE];
+	unsigned char MK_ID[SHA256_DIGEST_SIZE];
+	unsigned char self_randnum_next[RAND_LEN]; // used in register part
+	unsigned char peer_randnum_next[RAND_LEN]; // used in register part
 	unsigned char self_rtp_port;
 	unsigned char self_rtcp_port;
 	unsigned char peer_rtp_port;
 	unsigned char peer_rtcp_port;
-	unsigned char nonce_seed[RAND_LEN];
+	unsigned char nonce[RAND_LEN]; // used in key negotiation part
 	KeyBox keybox;
 }RegisterContext;
 
 // step2: SIP Server - SIP UA(NVR)
+/* WAI认证协议 鉴别激活分组 */
+typedef struct _auth_active
+{
+//	packet_head    wai_packet_head;                             /* WAI协议分组基本格式包头 */
+    BYTE           flag;                                      /* 标志FLAG */
+    BYTE           authidentify[RAND_LEN];                    /* 鉴别标识 */
+	BYTE		   aechallenge[RAND_LEN];
+	time_t         authactivetime;
+	identity       localasuidentity;                          /* 本地ASU的身份 */
+	ecdh_param     ecdhparam;                                 /* ECDH参数 */
+    certificate    certificatestaae;                          /* STAae的证书 */
+    sign_attribute aesign;                                      /* AE的签名 */
+
+}AuthActive;
+
 int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet);
 
 // step3: SIP UA(NVR) - SIP Server
+/* WAI认证协议 接入鉴别请求 */
+typedef struct _access_auth_requ
+{
+    BYTE             flag;                                        /* 标志 */
+    BYTE             authidentify[RAND_LEN];                      /* 鉴别标识 */
+    BYTE             asuechallenge[RAND_LEN];                     /* ASUE挑战 */
+    EVP_PKEY         asuekeydata;                                 /* ASUE密钥数据 */
+	BYTE			 aechallenge[RAND_LEN];
+    identity         staaeidentity;                             /* STAae的身份 */
+    ecdh_param       ecdhparam;                                   /* ECDH参数 */
+    certificate      certificatestaasue;                          /* STAasue证书 */
+    sign_attribute   asuesign;                                    /* ASUE的签名 */
+}AccessAuthRequ;
 int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet);
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet);
 
 // step4: SIP Server - Radius Server
+/* WAI认证协议 证书认证请求分组 */
+typedef struct _certificate_auth_requ
+{
+    addindex          addid;                                       /* 地址索引 ADDID*/
+    BYTE              aechallenge[RAND_LEN];                       /* AE挑战 */
+    BYTE              asuechallenge[RAND_LEN];                     /* ASUE挑战 */
+    certificate       staasuecer;                                  /* STAasue的证书 */
+    certificate       staaecer;                                    /* STAae的证书 */
+    sign_attribute    aesign;                                      /* AE的签名 */
+}CertificateAuthRequ;
 int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet);
 int ProcessWAPIProtocolCertAuthRequest(RegisterContext *rc,
-AccessAuthRequ *access_auth_requ_packet,
-CertificateAuthRequ *certificate_auth_requ_packet);
+		AccessAuthRequ *access_auth_requ_packet,
+		CertificateAuthRequ *certificate_auth_requ_packet);
 
 // step5: Radius Server - SIP Server
+/* WAI认证协议 证书认证响应分组 */
+typedef struct _certificate_auth_resp
+{
+    addindex                   addid;                             /* 地址索引ADDID */
+    certificate_valid_result   cervalidresult;                    /* 证书验证结果 */
+    sign_attribute             asusign;                           /* ASU服务器签名 */
+}CertificateAuthResp;
+
+/* WAI认证协议 接入鉴别响应 */
+typedef struct _access_auth_resp
+{
+    BYTE                         flag;                            /* 标识FLAG */
+	BYTE           				 authidentify[RAND_LEN];          /* 鉴别标识 */
+    BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
+    BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
+	EVP_PKEY                    aekeydata;                       /* AE密钥数据 */
+	BYTE						 accessresult;					  /* 接入结果 */
+	certificate_valid_result_complex   cervalrescomplex;                /* 复合证书验证结果 */
+    sign_attribute               aesign;                          /* AE的签名 */
+}AccessAuthResp;
+
 int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
-CertificateAuthRequ *certificate_auth_requ_packet,
-CertificateAuthResp *certificate_auth_resp_packet,
-AccessAuthResp *access_auth_resp_packet);
+		CertificateAuthRequ *certificate_auth_requ_packet,
+		CertificateAuthResp *certificate_auth_resp_packet,
+		AccessAuthResp *access_auth_resp_packet);
 
 // step6: SIP Server - SIP UA(NVR)
 int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
-AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet);
+		AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet);
+
 // step6+: SIP UA(NVR)
 int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access_auth_requ_packet,
 		AccessAuthResp *access_auth_resp_packet);
@@ -448,34 +401,41 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
  * (step 7-10 17-20)
  */
 
+// step7
+// Unicast key negotiation request
 typedef struct _UnicastKeyNegoRequ
 {
-	//
+    BYTE                         flag;                            /* 标识FLAG */
+	unsigned char                MK_ID[SHA256_DIGEST_SIZE];
+    addindex                     addid;                             /* 地址索引ADDID */
+    BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
+    sign_attribute               aesign;                          /* AE的签名 */
 }UnicastKeyNegoRequ;
+int ProcessUnicastKeyNegoRequest(RegisterContext *rc, UnicastKeyNegoRequ *unicast_key_nego_requ_packet);
+int HandleUnicastKeyNegoRequest(RegisterContext *rc, const UnicastKeyNegoRequ *unicast_key_nego_requ_packet);
 
+// step8
+// Unicast key negotiation response
 typedef struct _UnicastKeyNegoResp
 {
-	//
+    BYTE                         flag;                            /* 标识FLAG */
+	unsigned char                MK_ID[SHA256_DIGEST_SIZE];
+    addindex                     addid;                             /* 地址索引ADDID */
+    BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
+    BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
+    //[undefined]				// rtp rtcp info
+    unsigned char 				 digest[SHA256_DIGEST_SIZE];// Unicast data MAC code
 }UnicastKeyNegoResp;
+int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unicast_key_nego_resp_packet);
+int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *unicast_key_nego_resp_packet);
 
+// step9
+// Unicast key negotiation confirm
 typedef struct _UnicastKeyNegoConfirm
 {
 	//
 }UnicastKeyNegoConfirm;
-
-//Unicast key negotiation request
-int ProcessUnicastKeyNegoRequest(RegisterContext *rc, UnicastKeyNegoRequ *unicast_key_nego_requ_packet);
-
-int HandleUnicastKeyNegoRequest(RegisterContext *rc, const UnicastKeyNegoRequ *unicast_key_nego_requ_packet);
-
-//Unicast key negotiation response
-int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unicast_key_nego_resp_packet);
-
-int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *unicast_key_nego_resp_packet);
-
-//Unicast key negotiation confirm
 int ProcessUnicastKeyNegoConfirm(RegisterContext *rc, UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet);
-
 int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet);
 
 /* Scene 1 :
@@ -488,6 +448,9 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
  * (step 23-30)
  */
 /////////////////////////// written by yaoyao ///////////////////////////////////
+int par_certificate_auth_resp_packet(CertificateAuthRequ *cert_auth_resp_buffer_recv);
+
+
 /* uac Transport beteewn IPC and NVR interface begin */
 int uac_get_Transportsdp(char *sdp_data);
 int uac_handle_Transportsdp(char *sdp_data);
