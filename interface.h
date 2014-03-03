@@ -306,6 +306,7 @@ typedef struct RegisterContext{
 	unsigned char peer_rtcp_port;
 	unsigned char nonce[RAND_LEN]; // used in key negotiation part
 	KeyBox keybox;
+    int key_nego_result;
 }RegisterContext;
 
 // step2: SIP Server - SIP UA(NVR)
@@ -424,7 +425,7 @@ typedef struct _UnicastKeyNegoResp
     BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
     BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
     //[undefined]				// rtp rtcp info
-    unsigned char 				 digest[SHA256_DIGEST_SIZE];// Unicast data MAC code
+    unsigned char 				 digest[SHA256_DIGEST_SIZE]; // Unicast data digest code
 }UnicastKeyNegoResp;
 int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unicast_key_nego_resp_packet);
 int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *unicast_key_nego_resp_packet);
@@ -433,9 +434,19 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 // Unicast key negotiation confirm
 typedef struct _UnicastKeyNegoConfirm
 {
-	//
+    BYTE                         flag;                            /* 标识FLAG */
+	unsigned char                MK_ID[SHA256_DIGEST_SIZE];
+    addindex                     addid;                             /* 地址索引ADDID */
+    BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
+    int							 key_nego_result;
+    unsigned char 				 digest[SHA256_DIGEST_SIZE]; // Unicast data digest code
 }UnicastKeyNegoConfirm;
+
+/*
+ * rc->key_nego_result should be set to proper true/false value before ProcessUnicastKeyNegoConfirm is called
+ */
 int ProcessUnicastKeyNegoConfirm(RegisterContext *rc, UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet);
+
 int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet);
 
 /* Scene 1 :
