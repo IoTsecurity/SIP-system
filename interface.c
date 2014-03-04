@@ -1678,7 +1678,7 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 	hmac_sha256((BYTE *)unicast_key_nego_resp_packet, sizeof(UnicastKeyNegoResp)-sizeof(unicast_key_nego_resp_packet->digest),
 			rc->keybox.keyrings[i].IK, KEY_LEN,
 			digest, SHA256_DIGEST_SIZE);
-	if(!memcmp(unicast_key_nego_resp_packet->digest, digest, SHA256_DIGEST_SIZE)){
+	if(memcmp(unicast_key_nego_resp_packet->digest, digest, SHA256_DIGEST_SIZE)){
 		printf("digest verified failed!\n");
 		return FALSE;
 	}
@@ -1692,7 +1692,7 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 	// Dec(CK, RTP_send || RTCP_send || RTP_receive || RTCP_receive)
 	printf("[wait for sm3] rtp rtcp info is not decrypted !\n");
 
-	// fill asue rand number
+	// get asue rand number
 	memcpy(rc->peer_randnum_next, (BYTE *)&unicast_key_nego_resp_packet->asuechallenge, sizeof(rc->self_randnum_next));
 
 	return TRUE;
@@ -1744,6 +1744,29 @@ int ProcessUnicastKeyNegoConfirm(RegisterContext *rc, UnicastKeyNegoConfirm *uni
 int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet)
 {
 	printf("In ProcessUnicastKeyNegoConfirm:\n");
+
+	// verify digest
+	int i;
+	if((i=getKeyRingNum(&rc->keybox, rc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	unsigned char digest[SHA256_DIGEST_SIZE];
+	hmac_sha256((BYTE *)unicast_key_nego_confirm_packet, sizeof(UnicastKeyNegoConfirm)-sizeof(unicast_key_nego_confirm_packet->digest),
+			rc->keybox.keyrings[i].IK, KEY_LEN,
+			digest, SHA256_DIGEST_SIZE);
+	if(memcmp(unicast_key_nego_confirm_packet->digest, digest, SHA256_DIGEST_SIZE)){
+		printf("digest verified failed!\n");
+		return FALSE;
+	}
+
+	// verify asue rand number
+	if(memcmp(unicast_key_nego_confirm_packet->asuechallenge, rc->self_randnum_next, RAND_LEN)){
+		printf("asue rand number verified failed!\n");
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 /* Scene 1 :
