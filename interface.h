@@ -268,9 +268,10 @@ enum ConnectStatus{
 	LinkSession
 };
 
+#define MAXIDSTRING 64
 #define MAXKEYRINGS 10
 typedef struct KeyRing{
-	char *partner_id;
+	char partner_id[MAXIDSTRING];
 	unsigned char MasterKey[KEY_LEN];
 	unsigned char CK[KEY_LEN];
 	unsigned char IK[KEY_LEN];
@@ -306,7 +307,7 @@ typedef struct RegisterContext{
 	char *peer_ip;
 	MACaddr peer_MACaddr;
 	char *peer_password;
-	enum DeviceType peer_type;
+	//enum DeviceType peer_type;
 
 	// used in register part
 	EVP_PKEY keydata;
@@ -467,7 +468,7 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
  */
 #define MAXLINKS 10
 typedef struct SLink{
-	char *partner_id;
+	char partner_id[MAXIDSTRING];
 	unsigned char IK[KEY_LEN];
 	unsigned char IK_ID[SHA256_DIGEST_SIZE];
 	unsigned char CK[KEY_LEN];
@@ -482,13 +483,14 @@ typedef struct SecureLinks{
 extern SecureLinks Securelinks;
 
 typedef struct P2PLinkContext{
-	char *self_id;
+	char self_id[MAXIDSTRING];
 	MACaddr self_MACaddr;
 
-	char *peer_id;
+	char peer_id[MAXIDSTRING];
 	enum DeviceType peer_type;
+	MACaddr peer_MACaddr;
 
-	char *target_id;
+	char target_id[MAXIDSTRING];
 	enum DeviceType target_type;
 	MACaddr target_MACaddr;
 	Ports target_ports; // SIP Server should give this data

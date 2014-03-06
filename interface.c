@@ -1594,7 +1594,6 @@ int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unica
 			printf("Key rings is full!\n");
 			return FALSE;
 		}else{
-			Keybox.keyrings[Keybox.nkeys].partner_id = malloc(strlen(rc->peer_id));
 			strcpy(Keybox.keyrings[Keybox.nkeys].partner_id, rc->peer_id);
 			i = Keybox.nkeys;
 			Keybox.nkeys++;
@@ -1620,12 +1619,12 @@ int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unica
 		unicast_key_nego_resp_packet->myports.rtcp_send = 0;
 		unicast_key_nego_resp_packet->myports.rtp_recv = -1;
 		unicast_key_nego_resp_packet->myports.rtcp_recv = -1;
-	}else if(rc->peer_type == NVR){
+	}else if(Self_type == NVR){
 		unicast_key_nego_resp_packet->myports.rtp_send = 0;
 		unicast_key_nego_resp_packet->myports.rtcp_send = 0;
 		unicast_key_nego_resp_packet->myports.rtp_recv = 0;
 		unicast_key_nego_resp_packet->myports.rtcp_recv = 0;
-	}else if(rc->peer_type == Client){
+	}else if(Self_type == Client){
 		unicast_key_nego_resp_packet->myports.rtp_send = -1;
 		unicast_key_nego_resp_packet->myports.rtcp_send = -1;
 		unicast_key_nego_resp_packet->myports.rtp_recv = 0;
@@ -1688,7 +1687,6 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 			printf("Key rings is full!\n");
 			return FALSE;
 		}else{
-			Keybox.keyrings[Keybox.nkeys].partner_id = malloc(strlen(rc->peer_id));
 			strcpy(Keybox.keyrings[Keybox.nkeys].partner_id, rc->peer_id);
 			i = Keybox.nkeys;
 			Keybox.nkeys++;
@@ -1875,7 +1873,7 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 	textlen = 2*MAC_LEN + 2*KEY_LEN;
 	text = malloc(textlen);
 	if(lc->peer_type == IPC){
-		memcpy(text, lc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(text, lc->peer_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+MAC_LEN, lc->target_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+2*MAC_LEN, IK_IPC, KEY_LEN);
 		memcpy(text+2*MAC_LEN+KEY_LEN, IK_NVR, KEY_LEN);
@@ -1888,7 +1886,7 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 		memcpy(p2p_key_dist_packet->CK_IPC_NVR_ID, output, SHA256_DIGEST_SIZE);
 	}else if(lc->peer_type == NVR){
 		memcpy(text, lc->target_MACaddr.macaddr, MAC_LEN);
-		memcpy(text+MAC_LEN, lc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+MAC_LEN, lc->peer_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+2*MAC_LEN, IK_IPC, KEY_LEN);
 		memcpy(text+2*MAC_LEN+KEY_LEN, IK_NVR, KEY_LEN);
 		SHA256(text, textlen, output);
