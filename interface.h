@@ -43,6 +43,7 @@
 #define RAND_LEN                 32          /* 随机数长度 */
 #define SHA256_DIGEST_SIZE       32
 #define KEY_LEN                  16
+#define CIPHER_TEXT_LEN			 16
 
 #define MAX_COMM_DATA_LEN        65535       /* 通用数据的最大长度 */
 #define MAX_X509_DATA_LEN        1024 * 4    /* 存放X509DER编解码缓冲的最大长度 */
@@ -259,7 +260,7 @@ enum DeviceType{
 	NVR,
 	Client
 };
-enum DeviceType Self_type;
+extern enum DeviceType Self_type;
 
 enum ConnectStatus{
 	NolinkNosession,
@@ -281,6 +282,7 @@ typedef struct KeyBox{
 	KeyRing keyrings[MAXKEYRINGS];
 	int nkeys;
 }KeyBox;
+extern KeyBox Keybox;
 
 typedef struct MACaddr{
 	unsigned char macaddr[MAC_LEN];
@@ -305,7 +307,6 @@ typedef struct RegisterContext{
 	unsigned char peer_rtp_port;
 	unsigned char peer_rtcp_port;
 	unsigned char nonce[RAND_LEN]; // used in key negotiation part
-	KeyBox keybox;
     int key_nego_result;
 }RegisterContext;
 
@@ -451,8 +452,39 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
 
 /* Scene 1 :
  * IPC access to NVR process
- * (step 21-22)
+ * (step 21 22)
  */
+typedef struct P2PLinkContext{
+	char *self_id;
+	MACaddr self_MACaddr;
+	char *peer_id;
+	enum DeviceType peer_type; //MACaddr peer_MACaddr;
+	unsigned char peer_randnum[RAND_LEN];
+	char *target_id;
+	MACaddr target_MACaddr;
+	unsigned char target_rtp_port;
+	unsigned char target_rtcp_port;
+	unsigned char IK_target_ID[SHA256_DIGEST_SIZE];
+	unsigned char CK_target_ID[SHA256_DIGEST_SIZE];
+}P2PLinkContext;
+
+// step21
+// P2P key distribution
+typedef struct _P2PKeyDistribution
+{
+    BYTE                         flag;                            /* 标识FLAG */
+	unsigned char                IK_IPC_NVR_ID[SHA256_DIGEST_SIZE];
+	unsigned char                CK_IPC_NVR_ID[SHA256_DIGEST_SIZE];
+    addindex                     addid;                             /* 地址索引ADDID */
+    unsigned char                secure_link_info[CIPHER_TEXT_LEN];
+    BYTE                         randnum[RAND_LEN];
+    time_t						 time;
+    unsigned char 				 digest[SHA256_DIGEST_SIZE]; // Unicast data digest code
+}P2PKeyDistribution;
+int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_dist_packet);
+
+// step21+
+int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_key_dist_packet);
 
 /* Scene 1 :
  * IPC communicate to NVR process
