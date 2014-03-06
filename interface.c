@@ -1878,20 +1878,20 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 		memcpy(text+2*MAC_LEN, IK_IPC, KEY_LEN);
 		memcpy(text+2*MAC_LEN+KEY_LEN, IK_NVR, KEY_LEN);
 		SHA256(text, textlen, output);
-		memcpy(p2p_key_dist_packet->IK_IPC_NVR_ID, output, SHA256_DIGEST_SIZE);
+		memcpy(p2p_key_dist_packet->IK_P2P_ID, output, SHA256_DIGEST_SIZE);
 
 		memcpy(text+2*MAC_LEN, CK_IPC, KEY_LEN);
 		memcpy(text+2*MAC_LEN+KEY_LEN, CK_NVR, KEY_LEN);
 		SHA256(text, textlen, output);
-		memcpy(p2p_key_dist_packet->CK_IPC_NVR_ID, output, SHA256_DIGEST_SIZE);
+		memcpy(p2p_key_dist_packet->CK_P2P_ID, output, SHA256_DIGEST_SIZE);
 	}else if(lc->peer_type == NVR){
 		memcpy(text, lc->target_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+MAC_LEN, lc->peer_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+2*MAC_LEN, IK_IPC, KEY_LEN);
 		memcpy(text+2*MAC_LEN+KEY_LEN, IK_NVR, KEY_LEN);
 		SHA256(text, textlen, output);
-		memcpy(p2p_key_dist_packet->IK_IPC_NVR_ID, output, SHA256_DIGEST_SIZE);
-		memset(p2p_key_dist_packet->CK_IPC_NVR_ID, 0, SHA256_DIGEST_SIZE);
+		memcpy(p2p_key_dist_packet->IK_P2P_ID, output, SHA256_DIGEST_SIZE);
+		memset(p2p_key_dist_packet->CK_P2P_ID, 0, SHA256_DIGEST_SIZE);
 	}else{
 		printf("neither IPC nor NVR!!\n");
 	}
@@ -2002,6 +2002,10 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
 		printf("neither IPC nor NVR!!\n");
 	}
     printf("[wait for sm1] secure link info is not decrypted !\n");
+
+    // get IK_P2P_ID, CK_P2P_ID
+    memcpy(lc->IK_P2P_ID, p2p_key_dist_packet->IK_P2P_ID, SHA256_DIGEST_SIZE);
+    memcpy(lc->CK_P2P_ID, p2p_key_dist_packet->CK_P2P_ID, SHA256_DIGEST_SIZE);
 
     return TRUE;
 }

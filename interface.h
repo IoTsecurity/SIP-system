@@ -494,6 +494,9 @@ typedef struct P2PLinkContext{
 	enum DeviceType target_type;
 	MACaddr target_MACaddr;
 	Ports target_ports; // SIP Server should give this data
+
+	unsigned char IK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
+	unsigned char CK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
 }P2PLinkContext;
 
 // step21
@@ -501,8 +504,8 @@ typedef struct P2PLinkContext{
 typedef struct _P2PKeyDistribution
 {
     BYTE                         flag;                            /* 标识FLAG */
-	unsigned char                IK_IPC_NVR_ID[SHA256_DIGEST_SIZE];
-	unsigned char                CK_IPC_NVR_ID[SHA256_DIGEST_SIZE];
+	unsigned char                IK_P2P_ID[SHA256_DIGEST_SIZE];
+	unsigned char                CK_P2P_ID[SHA256_DIGEST_SIZE];
     addindex                     addid;                             /* 地址索引ADDID */
     unsigned char                secure_link_info[CIPHER_TEXT_LEN];
     BYTE                         randnum[RAND_LEN];
