@@ -297,23 +297,28 @@ typedef struct Ports{
 
 typedef struct RegisterContext{
 	char *radius_id;
+
 	char *self_id;
 	MACaddr self_MACaddr;
 	char *self_password;
+
 	char *peer_id;
-	MACaddr peer_MACaddr;
 	char *peer_ip;
-	enum DeviceType peer_type;
+	MACaddr peer_MACaddr;
 	char *peer_password;
+	enum DeviceType peer_type;
+
+	// used in register part
 	EVP_PKEY keydata;
-	unsigned char auth_id_next[SHA256_DIGEST_SIZE];
+	unsigned char auth_id_next[SHA256_DIGEST_SIZE]; // for re-authentiation
+
+	// used in key negotiation part
 	unsigned char MK_ID[SHA256_DIGEST_SIZE];
-	unsigned char self_randnum_next[RAND_LEN]; // used in register part
-	unsigned char peer_randnum_next[RAND_LEN]; // used in register part
-	Ports self_ports;
-	Ports peer_ports;
-	unsigned char nonce[RAND_LEN]; // used in key negotiation part
-    int key_nego_result;
+	unsigned char self_randnum_next[RAND_LEN];
+	unsigned char peer_randnum_next[RAND_LEN];
+	Ports peer_ports; // SIP Server should save this data
+	unsigned char nonce[RAND_LEN]; // for re-key-negotiation, reserved
+    BOOL key_nego_result;
 }RegisterContext;
 
 // step2: SIP Server - SIP UA(NVR)
@@ -464,7 +469,9 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
 typedef struct SLink{
 	char *partner_id;
 	unsigned char IK[KEY_LEN];
+	unsigned char IK_ID[SHA256_DIGEST_SIZE];
 	unsigned char CK[KEY_LEN];
+	unsigned char CK_ID[SHA256_DIGEST_SIZE];
 	Ports ports;
 }SLink;
 
@@ -477,14 +484,14 @@ extern SecureLinks Securelinks;
 typedef struct P2PLinkContext{
 	char *self_id;
 	MACaddr self_MACaddr;
+
 	char *peer_id;
-	enum DeviceType peer_type; //MACaddr peer_MACaddr;
-	unsigned char peer_randnum[RAND_LEN];
+	enum DeviceType peer_type;
+
 	char *target_id;
+	enum DeviceType target_type;
 	MACaddr target_MACaddr;
-	Ports target_ports;
-	unsigned char IK_target_ID[SHA256_DIGEST_SIZE];
-	unsigned char CK_target_ID[SHA256_DIGEST_SIZE];
+	Ports target_ports; // SIP Server should give this data
 }P2PLinkContext;
 
 // step21
@@ -497,7 +504,7 @@ typedef struct _P2PKeyDistribution
     addindex                     addid;                             /* 地址索引ADDID */
     unsigned char                secure_link_info[CIPHER_TEXT_LEN];
     BYTE                         randnum[RAND_LEN];
-    time_t						 time;
+    time_t						 timestamp;
     unsigned char 				 digest[SHA256_DIGEST_SIZE]; // Unicast data digest code
 }P2PKeyDistribution;
 int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_dist_packet);
