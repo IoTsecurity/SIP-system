@@ -43,7 +43,7 @@
 #define RAND_LEN                 32          /* 随机数长度 */
 #define SHA256_DIGEST_SIZE       32
 #define KEY_LEN                  16
-#define CIPHER_TEXT_LEN			 16
+#define CIPHER_TEXT_LEN			 64
 
 #define MAX_COMM_DATA_LEN        65535       /* 通用数据的最大长度 */
 #define MAX_X509_DATA_LEN        1024 * 4    /* 存放X509DER编解码缓冲的最大长度 */
@@ -288,24 +288,30 @@ typedef struct MACaddr{
 	unsigned char macaddr[MAC_LEN];
 }MACaddr;
 
+typedef struct Ports{
+	int rtp_send;
+	int rtcp_send;
+	int rtp_recv;
+	int rtcp_recv;
+}Ports;
+
 typedef struct RegisterContext{
 	char *radius_id;
-	char *peer_id;
-	char *peer_ip;
 	char *self_id;
+	MACaddr self_MACaddr;
 	char *self_password;
+	char *peer_id;
+	MACaddr peer_MACaddr;
+	char *peer_ip;
+	enum DeviceType peer_type;
 	char *peer_password;
 	EVP_PKEY keydata;
-	MACaddr self_MACaddr;
-	MACaddr peer_MACaddr;
 	unsigned char auth_id_next[SHA256_DIGEST_SIZE];
 	unsigned char MK_ID[SHA256_DIGEST_SIZE];
 	unsigned char self_randnum_next[RAND_LEN]; // used in register part
 	unsigned char peer_randnum_next[RAND_LEN]; // used in register part
-	unsigned char self_rtp_port;
-	unsigned char self_rtcp_port;
-	unsigned char peer_rtp_port;
-	unsigned char peer_rtcp_port;
+	Ports self_ports;
+	Ports peer_ports;
 	unsigned char nonce[RAND_LEN]; // used in key negotiation part
     int key_nego_result;
 }RegisterContext;
@@ -425,7 +431,7 @@ typedef struct _UnicastKeyNegoResp
     addindex                     addid;                             /* 地址索引ADDID */
     BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
     BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
-    //[undefined]				// rtp rtcp info
+	Ports						 myports;
     unsigned char 				 digest[SHA256_DIGEST_SIZE]; // Unicast data digest code
 }UnicastKeyNegoResp;
 int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unicast_key_nego_resp_packet);
@@ -454,6 +460,20 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
  * IPC access to NVR process
  * (step 21 22)
  */
+#define MAXLINKS 10
+typedef struct SLink{
+	char *partner_id;
+	unsigned char IK[KEY_LEN];
+	unsigned char CK[KEY_LEN];
+	Ports ports;
+}SLink;
+
+typedef struct SecureLinks{
+	SLink links[MAXLINKS];
+	int nlinks;
+}SecureLinks;
+extern SecureLinks Securelinks;
+
 typedef struct P2PLinkContext{
 	char *self_id;
 	MACaddr self_MACaddr;
@@ -462,8 +482,7 @@ typedef struct P2PLinkContext{
 	unsigned char peer_randnum[RAND_LEN];
 	char *target_id;
 	MACaddr target_MACaddr;
-	unsigned char target_rtp_port;
-	unsigned char target_rtcp_port;
+	Ports target_ports;
 	unsigned char IK_target_ID[SHA256_DIGEST_SIZE];
 	unsigned char CK_target_ID[SHA256_DIGEST_SIZE];
 }P2PLinkContext;

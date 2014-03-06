@@ -38,12 +38,24 @@ static int annotation = 2;  //1-lvshichao,2-yaoyao
 const time_t TimeThreshold = 10; // in seconds
 enum DeviceType Self_type; // =IPC/SIPserver/NVR/Client
 KeyBox Keybox;
+SecureLinks Securelinks;
 
 static int getKeyRingNum(const KeyBox *keybox, const char *id)
 {
 	int i;
 	for(i=0; i < keybox->nkeys; i++){
 		if(!strcmp(keybox->keyrings[i].partner_id, id)){
+			return i;
+		}
+	}
+	return -1;
+}
+
+static int getLinkNum(const SecureLinks *securelinks, const char *id)
+{
+	int i;
+	for(i=0; i < securelinks->nlinks; i++){
+		if(!strcmp(securelinks->links[i].partner_id, id)){
 			return i;
 		}
 	}
@@ -1603,7 +1615,25 @@ int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unica
 	 * for Client: rtp_receive || rtcp_receive
 	 */
 	// Enc(CK, RTP_send || RTCP_send || RTP_receive || RTCP_receive)
-	printf("[wait for sm3] rtp rtcp info is not encrypted !\n");
+	if(Self_type == IPC){
+		unicast_key_nego_resp_packet->myports.rtp_send = 0;
+		unicast_key_nego_resp_packet->myports.rtcp_send = 0;
+		unicast_key_nego_resp_packet->myports.rtp_recv = -1;
+		unicast_key_nego_resp_packet->myports.rtcp_recv = -1;
+	}else if(rc->peer_type == NVR){
+		unicast_key_nego_resp_packet->myports.rtp_send = 0;
+		unicast_key_nego_resp_packet->myports.rtcp_send = 0;
+		unicast_key_nego_resp_packet->myports.rtp_recv = 0;
+		unicast_key_nego_resp_packet->myports.rtcp_recv = 0;
+	}else if(rc->peer_type == Client){
+		unicast_key_nego_resp_packet->myports.rtp_send = -1;
+		unicast_key_nego_resp_packet->myports.rtcp_send = -1;
+		unicast_key_nego_resp_packet->myports.rtp_recv = 0;
+		unicast_key_nego_resp_packet->myports.rtcp_recv = 0;
+	}else{
+		printf("neither IPC nor NVR nor Client!!\n");
+	}
+	printf("[wait for sm1] rtp rtcp info is not encrypted !\n");
 
 	// fill digest
 	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
@@ -1693,7 +1723,8 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 	 * for Client: rtp_receive || rtcp_receive
 	 */
 	// Dec(CK, RTP_send || RTCP_send || RTP_receive || RTCP_receive)
-	printf("[wait for sm3] rtp rtcp info is not decrypted !\n");
+	rc->peer_ports = unicast_key_nego_resp_packet->myports;
+	printf("[wait for sm1] rtp rtcp info is not decrypted !\n");
 
 	// get asue rand number
 	memcpy(rc->peer_randnum_next, (BYTE *)&unicast_key_nego_resp_packet->asuechallenge, sizeof(rc->self_randnum_next));
@@ -1890,6 +1921,16 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 	 * for NVR: IK_IPC_NVR || IPC_rtp_send || IPC_rtcp_send
 	 * for Client(?): IK_NVR_Client || NVR_rtp_send || NVR_rtcp_send
 	 */
+	if(lc->peer_type == IPC){
+		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
+		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, CK_IPC_NVR, KEY_LEN);
+		memcpy(p2p_key_dist_packet->secure_link_info+2*KEY_LEN, &lc->target_ports, sizeof(lc->target_ports));
+	}else if(lc->peer_type == NVR){
+		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
+		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, &lc->target_ports, sizeof(lc->target_ports));
+	}else{
+		printf("neither IPC nor NVR!!\n");
+	}
 	printf("[wait for sm1] secure link info is not encrypted !\n");
 
 	// fill rand number
@@ -1946,8 +1987,27 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
 	/*
 	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_rtp_receive || NVR_rtcp_receive
 	 * for NVR: IK_IPC_NVR || IPC_rtp_send || IPC_rtcp_send
-	 * for Client(?): IK_NVR_Client || NVR_rtp_send || NVR_rtcp_send
 	 */
+	if( (i=getLinkNum(&Securelinks, lc->target_id)) < 0 ){
+		if(i >= MAXLINKS){
+			printf("Links is full!\n");
+		}else{
+		strcpy(Securelinks.links[Securelinks.nlinks].partner_id, lc->target_id);
+		i = Securelinks.nlinks;
+		Securelinks.nlinks++;
+		}
+	}
+	if(Self_type == IPC){
+		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
+		memcpy(Securelinks.links[i].CK, p2p_key_dist_packet->secure_link_info+KEY_LEN, KEY_LEN);
+		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+2*KEY_LEN, sizeof(Ports));
+	}else if(Self_type == NVR){
+		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
+		memset(Securelinks.links[i].CK, 0, KEY_LEN);
+		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+KEY_LEN, sizeof(Ports));
+	}else{
+		printf("neither IPC nor NVR!!\n");
+	}
     printf("[wait for sm1] secure link info is not decrypted !\n");
 
     return TRUE;
