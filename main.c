@@ -35,6 +35,8 @@ int main(int argc,char *argv[])
 		char recieve_sdp_data[1024];
 		char rtsp_data[1024];
 		char EOF_message[1024];
+		char to[50];
+		char from[50];
 		struct st_rtsptype rtsptype;
 
 		if(argc>1)
@@ -43,13 +45,14 @@ int main(int argc,char *argv[])
 		init_conf("default.cfg");
 		uac_init();
 
-		printf("r: regester\n");
-		printf("i: invite\n");
-		printf("n: send info\n");
-		printf("m: send message\n");
-		printf("b: bye\n");
-		printf("s: run as a uas\n");
-		printf("e: exit\n");
+		printf("1: regester\n");
+		printf("2: invite\n");
+		printf("3: send info\n");
+		printf("4: send EOF message\n");
+		printf("5: send nosession message\n");
+		printf("6: bye\n");
+		printf("7: run as a uas\n");
+		printf("8: exit\n");
 
 		char command;
 		//printf ("please input the comand:\n");
@@ -65,10 +68,10 @@ int main(int argc,char *argv[])
 			//printf("+%c+\n",command);
 			switch (command)
 			{
-				case 'r':
+				case '1':
 					uac_register();
 					break;
-				case 'i':
+				case '2':
 					call_type=CALL_TYPE_PLAY;
 					uac_get_Playsdp(send_sdp_data);
 					char *default_invite;
@@ -81,28 +84,35 @@ int main(int argc,char *argv[])
 					//uac_receive_Playmedia();
 					uac_start_media(device_info.server_ip);
 					break;
-				case 'b':
-					uac_bye(inviteId);
-					//uac_close_Playmedia();
-					uac_close_media();
-					break;
-				case 'n':
+				case '3':
 					//uas_send_info(inviteId);
 					rtsptype.rtsp_datatype="PLAY";
 					rtsptype.scale=1;
 					uac_get_Historyrtsp(rtsp_data,&rtsptype);
 					uac_send_message(inviteId,"INFO","Application/MANSRTSP",rtsp_data);
 					break;
-				case 'm':
+				case '4':
 					//send "EOF" message
 					get_HistoryEOFmessage(EOF_message,"EOF");
 					uac_send_message(inviteId,"MESSAGE","Application/MANSCDP+xml",EOF_message);
 					//uas_send_message(inviteId,"INFO","Application/MANSRTSP","sssss");
 					break;
-				case 's':
+				case '5':
+
+					snprintf(to, 50,"sip:%s@%s:%s",device_info.server_id,device_info.server_ip,device_info.server_port);
+
+					snprintf(from, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
+					uac_send_noSessionMessage(to,from, NULL,"this is no session message");
+					break;
+				case '6':
+					uac_bye(inviteId);
+					//uac_close_Playmedia();
+					uac_close_media();
+					break;
+				case '7':
 					uas_eXosip_processEvent();
 					break;
-				case 'e':
+				case '8':
 					exit(1);
 					break;
 				default:

@@ -196,8 +196,9 @@ int uac_register()
 					printf("length:%d",(sizeof(CertificateAuthRequ)*2));
 					printf("length:%d",sizeof(CertificateAuthResp)*2);
 					printf("length:%d",sizeof(AccessAuthResp)*2);
+					//printf("auth_request_packet_data:%s",auth_request_packet_data);
 					osip_message_set_body(reg,auth_request_packet_data,sizeof(AccessAuthRequ)*2);
-
+					decodeFromChar(auth_request_packet_data,sizeof(AccessAuthRequ)*2);
 					//osip_message_set_body(reg,auth_request_packet_data,DATA_LEN);
 					//free(tmp);
 
@@ -228,6 +229,7 @@ int uac_register()
 				osip_message_get_body (je->response, 0, &body);
 				message=(char *)malloc (body->length*sizeof(char));
 				memcpy(message,body->body, body->length);
+				//printf("%s",message);
 				handle_response_data(message,auth_request_packet_data);
 
 				/*
@@ -321,6 +323,41 @@ int uac_send_message(sessionId inviteId,char * type ,char * type_info,char * mes
 
 	return i;
 }
+
+int uac_send_noSessionMessage(char * to, char * from, char * route,char * content)
+{
+	osip_message_t *message;
+	eXosip_lock ();
+	eXosip_message_build_request (&message, "MESSAGE", to,from, route);
+	printf("message->sip_version:%s \n",message->sip_version);
+	printf("eXosip_message_build_request end \n");
+
+	osip_message_set_body(message,content,strlen(content));
+	printf("osip_message_set_body end \n");
+	osip_message_set_content_type(message,"text/code");
+	printf("osip_message_set_content_type end \n");
+	eXosip_message_send_request(message);
+	printf("eXosip_message_send_request end \n");
+	eXosip_unlock ();
+
+	eXosip_event_t *je  = NULL;
+/*	for (;;)
+			{
+				je = eXosip_event_wait(10, 500);//侦听消息的到来
+
+				if (NULL == je)//没有接收到消息
+				{
+					continue;
+				}
+				if (EXOSIP_MESSAGE_NEW == je->type)//xiaoxi
+				{
+					printf("receive message\n");
+				}
+
+			}
+*/
+	return 1;
+	}
 
 //获取地址
 //返回IP地址字符串

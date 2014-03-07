@@ -98,4 +98,6 @@ int decodeFromChar(char *data,int lenth);
 
 int init_Contextconf(char * file);
 
+int getSelfMac(char*mac);
+
 #endif /* DISPATCH_H_ */

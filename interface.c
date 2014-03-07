@@ -35,13 +35,27 @@ const char *CAID = "0";
 
 static int annotation = 2;  //1-lvshichao,2-yaoyao
 
-const time_t TimeThreshold = 10; // seconds
+const time_t TimeThreshold = 10; // in seconds
+enum DeviceType Self_type; // =IPC/SIPserver/NVR/Client
+KeyBox Keybox;
+SecureLinks Securelinks;
 
-static int getKeyRingNum(KeyBox *keybox, char *id)
+static int getKeyRingNum(const KeyBox *keybox, const char *id)
 {
 	int i;
 	for(i=0; i < keybox->nkeys; i++){
 		if(!strcmp(keybox->keyrings[i].partner_id, id)){
+			return i;
+		}
+	}
+	return -1;
+}
+
+static int getLinkNum(const SecureLinks *securelinks, const char *id)
+{
+	int i;
+	for(i=0; i < securelinks->nlinks; i++){
+		if(!strcmp(securelinks->links[i].partner_id, id)){
 			return i;
 		}
 	}
@@ -285,38 +299,10 @@ BOOL verify_sign(BYTE *input,int sign_input_len,BYTE * sign_value, unsigned int 
 }
 
 
-/*************************************************
-
-Function:    // SHA256
-Description: // SHA256散列函数
-Calls:       // openssl SHA256的API函数
-Called By:   //
-Input:	     //	input---待计算摘要的输入数据
-                input_len---待计算摘要的输入数据长度
-                output---摘要结果输出
-Output:      //	摘要值
-Return:      // 256bit(32Byte)摘要
-Others:      // 本处注释只是为了大家理解，待理解后，本处注释可删除
-
-*************************************************/
+// Return 32Byte digest
 //SHA256(input, input_len, output);
 
-/*************************************************
-
-Function:    // hmac_sha256
-Description: // WAPI消息认证MAC算法
-Calls:       // openssl SHA256的API函数
-Called By:   // 待添加！！！
-Input:	     //	text---待计算MAC的输入数据
-                text_len---待计算MAC的输入数据长度
-                key---hmac密钥
-                key_len---hmac密钥长度
-                digest---输出MAC值
-Output:      //	MAC值
-Return:      // 256bit(32Byte)MAC
-Others:      // 如果想设定输出MAC的长度，可考虑添加一个输出MAC长度的形参
-
-*************************************************/
+// Return 32Byte digest
 void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key, unsigned int key_len, unsigned char* result, unsigned int result_len)
 {
 	HMAC_CTX ctx;
@@ -722,13 +708,14 @@ void user_gen_cert_request(char *user_ID,char *username)
  */
 
 // step2: SIP Server - SIP UA(NVR)
-int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet){
+int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet)
+{
 	//fill flag
 	if(annotation == 2)
 		printf("fill flag:\n");
-	auth_active_packet->flag = 0x00;
+	auth_active_packet->flag = 2; // step2
 
-	//fill auth identify, first time random number
+	//fill auth identify, first random number
 	if(annotation == 2)
 		printf("fill auth identify:\n");
 
@@ -813,7 +800,8 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 }
 
 // step3: SIP UA(NVR) - SIP Server
-int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet){
+int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_packet)
+{
 	//write ae cert into cert file
 	printf("write ae cert into cert file:\n");
 	char *ae_ID = rc->peer_id;
@@ -850,16 +838,17 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 
 	//verify FLAG
 	printf("verify FLAG:\n");
-	if(auth_active_packet->flag != 0x00){
-		printf("Not the first time access.\n");
+	if(auth_active_packet->flag != 2){
+		printf("Not the first access.\n");
 		return FALSE;
 	}
 
 	//verify auth active time
     time_t  t;
     time(&t);
-    if((t - auth_active_packet->authactivetime) > TimeThreshold)
+    if((t - auth_active_packet->authactivetime) > TimeThreshold){
     	return FALSE;
+    }
 
 	//verify auth_id
     printf("verify auth identity.\n");
@@ -887,11 +876,11 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 }
 
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
-		AccessAuthRequ *access_auth_requ_packet){
-
+		AccessAuthRequ *access_auth_requ_packet)
+{
 		//fill flag
 		printf("fill flag:\n");
-		access_auth_requ_packet->flag = 0x04;
+		access_auth_requ_packet->flag = 3; // step3
 
 		//fill auth identify, same as auth active packet
 		printf("fill auth identify:\n");
@@ -967,8 +956,8 @@ int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_a
 
 // step4: SIP Server - Radius Server
 int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
-		AccessAuthRequ *access_auth_requ_packet){
-
+		AccessAuthRequ *access_auth_requ_packet)
+{
 	//write asue cert into cert file
 	if(annotation == 2)
 		printf("write asue cert into cert file:\n");
@@ -1051,8 +1040,8 @@ int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_ac
 	return TRUE;
 }
 int ProcessWAPIProtocolCertAuthRequest(RegisterContext *rc,
-AccessAuthRequ *access_auth_requ_packet,
-CertificateAuthRequ *certificate_auth_requ_packet){
+		AccessAuthRequ *access_auth_requ_packet, CertificateAuthRequ *certificate_auth_requ_packet)
+{
 	//fill addid
 	memcpy((BYTE *)&(certificate_auth_requ_packet->addid.mac1),rc->peer_MACaddr.macaddr,sizeof(certificate_auth_requ_packet->addid.mac1));
 	memcpy((BYTE *)&(certificate_auth_requ_packet->addid.mac2),rc->self_MACaddr.macaddr,sizeof(certificate_auth_requ_packet->addid.mac2));
@@ -1111,9 +1100,10 @@ CertificateAuthRequ *certificate_auth_requ_packet){
 
 // step6: SIP Server - SIP UA(NVR)
 int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
-CertificateAuthRequ *certificate_auth_requ_packet,
-CertificateAuthResp *certificate_auth_resp_packet,
-AccessAuthResp *access_auth_resp_packet){
+		CertificateAuthRequ *certificate_auth_requ_packet,
+		CertificateAuthResp *certificate_auth_resp_packet,
+		AccessAuthResp *access_auth_resp_packet)
+{
 	memset((BYTE *)access_auth_resp_packet, 0, sizeof(AccessAuthResp));
 
 	//读取CA(驻留在ASU)中的公钥证书获取CA公钥
@@ -1179,11 +1169,12 @@ AccessAuthResp *access_auth_resp_packet){
 }
 
 int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
-AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet){
+		AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet)
+{
 	//fill flag, same as access auth requ packet
 	if(annotation == 2)
 		printf("fill flag:\n");
-	access_auth_resp_packet->flag = access_auth_requ_packet->flag;
+	access_auth_resp_packet->flag = 6; // step6
 
 	//fill auth identify, same as access auth requ packet
 	if(annotation == 2)
@@ -1255,26 +1246,30 @@ AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet
 	 * auth_id_next = SHA256(auth_id_next_seed)
 	 */
 	unsigned char *ECDH_keydata; // shared secret
-	size_t secretlen=KEYLENGTH;
+	size_t secretlen=KEY_LEN;
 	ECDH_keydata = genECDHsharedsecret(&rc->keydata, &access_auth_requ_packet->asuekeydata, &secretlen);
 
 	char *tempstring = "masterkeyexpansionforkeyandadditionalnonce";
-	int outputlen = sizeof(rc->keybox.keyrings[0].MasterKey) + sizeof(rc->auth_id_next);
+	int outputlen = sizeof(Keybox.keyrings[0].MasterKey) + sizeof(rc->auth_id_next);
 	int textlen = sizeof(access_auth_requ_packet->aechallenge) +
 			sizeof(access_auth_requ_packet->asuechallenge) +
 			strlen(tempstring);
 	unsigned char *output = malloc(outputlen);
 	unsigned char *text = malloc(textlen);
-	kd_hmac_sha256(text, textlen, ECDH_keydata, KEYLENGTH, output, outputlen);
+	kd_hmac_sha256(text, textlen, ECDH_keydata, KEY_LEN, output, outputlen);
 
 	int i;
-	if( (i=getKeyRingNum(&rc->keybox, rc->self_id)) < 0 ){
-		strcpy(rc->keybox.keyrings[rc->keybox.nkeys].partner_id, rc->self_id);
-		i = rc->keybox.nkeys;
-		rc->keybox.nkeys++;
+	if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
+		if(i >= MAXKEYRINGS){
+			printf("Key rings is full!\n");
+		}else{
+		strcpy(Keybox.keyrings[Keybox.nkeys].partner_id, rc->peer_id);
+		i = Keybox.nkeys;
+		Keybox.nkeys++;
+		}
 	}
-	memcpy(rc->keybox.keyrings[i].MasterKey, output, sizeof(rc->keybox.keyrings[i].MasterKey));
-	SHA256(output+sizeof(rc->keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
+	memcpy(Keybox.keyrings[i].MasterKey, output, sizeof(Keybox.keyrings[i].MasterKey));
+	SHA256(output+sizeof(Keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
 	free(output);
 	free(text);
 
@@ -1283,7 +1278,8 @@ AccessAuthRequ *access_auth_requ_packet, AccessAuthResp *access_auth_resp_packet
 
 // step6+: SIP UA(NVR)
 int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access_auth_requ_packet,
-		AccessAuthResp *access_auth_resp_packet){
+		AccessAuthResp *access_auth_resp_packet)
+{
 		//verify sign of AE
 		printf("verify sign of AE:\n");
 		//read ae certificate get ae pubkey(公钥)
@@ -1412,26 +1408,30 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 		 * auth_id_next = SHA256(auth_id_next_seed)
 		 */
 		unsigned char *ECDH_keydata; // shared secret
-		size_t secretlen = KEYLENGTH;
+		size_t secretlen = KEY_LEN;
 		ECDH_keydata = genECDHsharedsecret(&rc->keydata, &access_auth_resp_packet->aekeydata, &secretlen);
 
 		char *tempstring = "masterkeyexpansionforkeyandadditionalnonce";
-		int outputlen = sizeof(rc->keybox.keyrings[0].MasterKey) + sizeof(rc->auth_id_next);
+		int outputlen = sizeof(Keybox.keyrings[0].MasterKey) + sizeof(rc->auth_id_next);
 		int textlen = sizeof(access_auth_requ_packet->aechallenge) +
 				sizeof(access_auth_requ_packet->asuechallenge) +
 				strlen(tempstring);
 		unsigned char *output = malloc(outputlen);
 		unsigned char *text = malloc(textlen);
-		kd_hmac_sha256(text, textlen, ECDH_keydata, KEYLENGTH, output, outputlen);
+		kd_hmac_sha256(text, textlen, ECDH_keydata, KEY_LEN, output, outputlen);
 
 		int i;
-		if( (i=getKeyRingNum(&rc->keybox, rc->self_id)) < 0 ){
-			strcpy(rc->keybox.keyrings[rc->keybox.nkeys].partner_id, rc->self_id);
-			i = rc->keybox.nkeys;
-			rc->keybox.nkeys++;
+		if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
+			if(i >= MAXKEYRINGS){
+				printf("Key rings is full!\n");
+			}else{
+			strcpy(Keybox.keyrings[Keybox.nkeys].partner_id, rc->peer_id);
+			i = Keybox.nkeys;
+			Keybox.nkeys++;
+			}
 		}
-		memcpy(rc->keybox.keyrings[i].MasterKey, output, sizeof(rc->keybox.keyrings[i].MasterKey));
-		SHA256(output+sizeof(rc->keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
+		memcpy(Keybox.keyrings[i].MasterKey, output, sizeof(Keybox.keyrings[i].MasterKey));
+		SHA256(output+sizeof(Keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
 		free(output);
 		free(text);
 
@@ -1442,37 +1442,573 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
  * Key negotiation process
  * (step 7-10 17-20)
  */
-//Unicast key negotiation request
-int ProcessUnicastKeyNegoRequest(RegisterContext *rc, UnicastKeyNegoRequ *unicast_key_nego_requ_packet){
+// step7: SIP Server - SIP UA(NVR)
+// Unicast key negotiation request
+int ProcessUnicastKeyNegoRequest(RegisterContext *rc, UnicastKeyNegoRequ *unicast_key_nego_requ_packet)
+{
+	printf("In ProcessUnicastKeyNegoRequest:\n");
 
+	// fill flag
+	unicast_key_nego_requ_packet->flag = 7; // step7
+
+	// fill master key id
+	/* MK_ID = HMAC-SHA256(MasterKey, MAC_SIPUA || MAC_SIPServer) */
+	unsigned int textlen = sizeof(rc->peer_MACaddr) + sizeof(rc->self_MACaddr);
+	unsigned char *text = malloc(textlen);
+	memcpy(text, rc->peer_MACaddr.macaddr, sizeof(rc->peer_MACaddr.macaddr));
+	memcpy(text+sizeof(rc->peer_MACaddr.macaddr), rc->self_MACaddr.macaddr, sizeof(rc->self_MACaddr.macaddr));
+	hmac_sha256(text, textlen, Keybox.keyrings[getKeyRingNum(&Keybox, rc->peer_id)].MasterKey,
+			KEY_LEN, rc->MK_ID, SHA256_DIGEST_SIZE);
+	free(text);
+	memcpy(unicast_key_nego_requ_packet->MK_ID, rc->MK_ID, SHA256_DIGEST_SIZE);
+
+	// fill addid
+	memcpy(unicast_key_nego_requ_packet->addid.mac1, rc->peer_MACaddr.macaddr, sizeof(rc->peer_MACaddr.macaddr));
+	memcpy(unicast_key_nego_requ_packet->addid.mac2, rc->self_MACaddr.macaddr, sizeof(rc->self_MACaddr.macaddr));
+
+	// fill ae rand number
+	gen_randnum(rc->self_randnum_next, sizeof(rc->self_randnum_next));
+	memcpy((BYTE *)&unicast_key_nego_requ_packet->aechallenge, rc->self_randnum_next, sizeof(rc->self_randnum_next));
+
+	// fill ae signature
+	EVP_PKEY * privKey;
+	BYTE sign_value[1024];					//保存签名值的数组
+	unsigned int  sign_len;
+
+	privKey = getprivkeyfromprivkeyfile(rc->self_id);
+	if(privKey == NULL)	{
+		printf("getprivkeyitsself().....failed!\n");
+		return FALSE;
+	}
+
+	if(!gen_sign((BYTE *)unicast_key_nego_requ_packet,(sizeof(UnicastKeyNegoRequ)-sizeof(unicast_key_nego_requ_packet->aesign)),sign_value, &sign_len,privKey)){
+		printf("generate signature failed.\n");
+		return FALSE;
+	}
+
+	unicast_key_nego_requ_packet->aesign.sign.length = sign_len;
+	memcpy(unicast_key_nego_requ_packet->aesign.sign.data,sign_value,sign_len);
+
+	return TRUE;
 }
 
-int HandleUnicastKeyNegoRequest(RegisterContext *rc, const UnicastKeyNegoRequ *unicast_key_nego_requ_packet){
+// step8: SIP UA(NVR) - SIP Server
+// Unicast key negotiation response
+int HandleUnicastKeyNegoRequest(RegisterContext *rc, const UnicastKeyNegoRequ *unicast_key_nego_requ_packet)
+{
+	printf("In HandleUnicastKeyNegoRequest:\n");
 
+		//verify sign of AE
+		//read ae certificate get ae pubkey(公钥)
+		EVP_PKEY *aepubKey = NULL;
+		BYTE *pTmp = NULL;
+		BYTE deraepubkey[1024];
+		int aepubkeyLen;
+		aepubKey = getpubkeyfromcert(rc->peer_id);
+		if(aepubKey == NULL){
+			printf("get ae's public key failed.\n");
+			return FALSE;
+		}
+		pTmp = deraepubkey;
+		//把证书公钥转换为DER编码的数据，以方便打印(aepubkey结构体不方便打印)
+		aepubkeyLen = i2d_PublicKey(aepubKey, &pTmp);
+
+		//verify the sign
+		if ( verify_sign((BYTE *)unicast_key_nego_requ_packet,
+				sizeof(UnicastKeyNegoRequ) - sizeof(sign_attribute),
+				(BYTE *)unicast_key_nego_requ_packet->aesign.sign.data,
+				unicast_key_nego_requ_packet->aesign.sign.length, aepubKey) )
+		{
+			EVP_PKEY_free(aepubKey);
+		}else{
+			printf("ae's sign verify failed.\n");
+			return FALSE;
+		}
+
+		// verify master key id
+		/* MK_ID = HMAC-SHA256(MasterKey, MAC_SIPUA || MAC_SIPServer) */
+		unsigned int textlen = sizeof(rc->self_MACaddr) + sizeof(rc->peer_MACaddr);
+		unsigned char *text = malloc(textlen);
+		memcpy(text, rc->self_MACaddr.macaddr, sizeof(rc->self_MACaddr.macaddr));
+		memcpy(text+sizeof(rc->self_MACaddr.macaddr), rc->peer_MACaddr.macaddr, sizeof(rc->peer_MACaddr.macaddr));
+		hmac_sha256(text, textlen, Keybox.keyrings[getKeyRingNum(&Keybox, rc->peer_id)].MasterKey,
+				KEY_LEN, rc->MK_ID, SHA256_DIGEST_SIZE);
+		free(text);
+		if(memcmp(unicast_key_nego_requ_packet->MK_ID, rc->MK_ID, SHA256_DIGEST_SIZE)){
+			printf("ae's master key id verify failed.\n");
+			return FALSE;
+		}
+
+		// get ae rand number
+		memcpy(rc->peer_randnum_next, unicast_key_nego_requ_packet->aechallenge, sizeof(rc->peer_randnum_next));
+
+		return TRUE;
 }
 
-//Unicast key negotiation response
-int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unicast_key_nego_resp_packet){
+int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unicast_key_nego_resp_packet)
+{
+	printf("In ProcessUnicastKeyNegoResponse:\n");
 
+	// fill flag
+	unicast_key_nego_resp_packet->flag = 8; // step8
+
+	// fill master key id
+	memcpy(unicast_key_nego_resp_packet->MK_ID, rc->MK_ID, SHA256_DIGEST_SIZE);
+
+	// fill addid
+	memcpy(unicast_key_nego_resp_packet->addid.mac1, rc->self_MACaddr.macaddr, sizeof(rc->self_MACaddr.macaddr));
+	memcpy(unicast_key_nego_resp_packet->addid.mac2, rc->peer_MACaddr.macaddr, sizeof(rc->peer_MACaddr.macaddr));
+
+	// fill asue rand number
+	gen_randnum(rc->self_randnum_next, sizeof(rc->self_randnum_next));
+	memcpy((BYTE *)&unicast_key_nego_resp_packet->asuechallenge, rc->self_randnum_next, sizeof(rc->self_randnum_next));
+
+	// fill ae rand number
+	memcpy(unicast_key_nego_resp_packet->aechallenge, rc->peer_randnum_next, sizeof(rc->peer_randnum_next));
+
+	// compute key block
+	/*
+	 * KeyBlock = KD-HMAC-SHA256(MasterKey, MAC_SIPUA || MAC_SIPServer ||
+	 *     n'_SIPUA || n'_SIPServer || "pairwisekeyexpansionforunicastandadditionalkeysandnonce")
+	 */
+	char *tempstring = "pairwisekeyexpansionforunicastandadditionalkeysandnonce";
+	int outputlen = 3*KEY_LEN + RAND_LEN;
+	int textlen = 2*MAC_LEN + 2*RAND_LEN + strlen(tempstring);
+	unsigned char *output = malloc(outputlen);
+	unsigned char *text = malloc(textlen);
+	memcpy(text, rc->self_MACaddr.macaddr, MAC_LEN);
+	memcpy(text+MAC_LEN, rc->peer_MACaddr.macaddr, MAC_LEN);
+	memcpy(text+2*MAC_LEN, rc->self_randnum_next, RAND_LEN);
+	memcpy(text+2*MAC_LEN+RAND_LEN, rc->peer_randnum_next, RAND_LEN);
+	memcpy(text+2*MAC_LEN+2*RAND_LEN, tempstring, strlen(tempstring));
+	int i;
+	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	kd_hmac_sha256(text, textlen, Keybox.keyrings[i].MasterKey,
+			KEY_LEN, output, outputlen);
+
+	if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
+		if(i >= MAXKEYRINGS-1){
+			printf("Key rings is full!\n");
+			return FALSE;
+		}else{
+			strcpy(Keybox.keyrings[Keybox.nkeys].partner_id, rc->peer_id);
+			i = Keybox.nkeys;
+			Keybox.nkeys++;
+		}
+	}
+
+	memcpy(Keybox.keyrings[i].CK, output, KEY_LEN);
+	memcpy(Keybox.keyrings[i].IK, output+KEY_LEN, KEY_LEN);
+	memcpy(Keybox.keyrings[i].KEK, output+2*KEY_LEN, KEY_LEN);
+	SHA256(output+3*KEY_LEN, RAND_LEN, rc->nonce);
+	free(output);
+	free(text);
+
+	// fill rtp rtcp info
+	/*
+	 * for IPC: rtp_send || rtcp_send
+	 * for NVR: rtp_send || rtcp_send || rtp_receive || rtcp_receive
+	 * for Client: rtp_receive || rtcp_receive
+	 */
+	// Enc(CK, RTP_send || RTCP_send || RTP_receive || RTCP_receive)
+	if(Self_type == IPC){
+		unicast_key_nego_resp_packet->myports.rtp_send = 0;
+		unicast_key_nego_resp_packet->myports.rtcp_send = 0;
+		unicast_key_nego_resp_packet->myports.rtp_recv = -1;
+		unicast_key_nego_resp_packet->myports.rtcp_recv = -1;
+	}else if(Self_type == NVR){
+		unicast_key_nego_resp_packet->myports.rtp_send = 0;
+		unicast_key_nego_resp_packet->myports.rtcp_send = 0;
+		unicast_key_nego_resp_packet->myports.rtp_recv = 0;
+		unicast_key_nego_resp_packet->myports.rtcp_recv = 0;
+	}else if(Self_type == Client){
+		unicast_key_nego_resp_packet->myports.rtp_send = -1;
+		unicast_key_nego_resp_packet->myports.rtcp_send = -1;
+		unicast_key_nego_resp_packet->myports.rtp_recv = 0;
+		unicast_key_nego_resp_packet->myports.rtcp_recv = 0;
+	}else{
+		printf("neither IPC nor NVR nor Client!!\n");
+	}
+	printf("[wait for sm1] rtp rtcp info is not encrypted !\n");
+
+	// fill digest
+	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	hmac_sha256((BYTE *)unicast_key_nego_resp_packet, sizeof(UnicastKeyNegoResp)-sizeof(unicast_key_nego_resp_packet->digest),
+			Keybox.keyrings[i].IK, KEY_LEN,
+			unicast_key_nego_resp_packet->digest, SHA256_DIGEST_SIZE);
+
+	return TRUE;
 }
 
-int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *unicast_key_nego_resp_packet){
+// step9: SIP Server - SIP UA(NVR)
+// Unicast key negotiation confirm
+int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *unicast_key_nego_resp_packet)
+{
+	printf("In HandleUnicastKeyNegoResponse:\n");
 
+	// verify master key id
+	/* MK_ID = HMAC-SHA256(MasterKey, MAC_SIPUA || MAC_SIPServer) */
+	if(memcmp(unicast_key_nego_resp_packet->MK_ID, rc->MK_ID, SHA256_DIGEST_SIZE)){
+		printf("ae's master key id verify failed.\n");
+		return FALSE;
+	}
+
+	// compute key block
+	/*
+	 * KeyBlock = KD-HMAC-SHA256(MasterKey, MAC_SIPUA || MAC_SIPServer ||
+	 *     n'_SIPUA || n'_SIPServer || "pairwisekeyexpansionforunicastandadditionalkeysandnonce")
+	 */
+	char *tempstring = "pairwisekeyexpansionforunicastandadditionalkeysandnonce";
+	int outputlen = 3*KEY_LEN + RAND_LEN;
+	int textlen = 2*MAC_LEN + 2*RAND_LEN + strlen(tempstring);
+	unsigned char *output = malloc(outputlen);
+	unsigned char *text = malloc(textlen);
+	memcpy(text, rc->peer_MACaddr.macaddr, MAC_LEN);
+	memcpy(text+MAC_LEN, rc->self_MACaddr.macaddr, MAC_LEN);
+	memcpy(text+2*MAC_LEN, rc->peer_randnum_next, RAND_LEN);
+	memcpy(text+2*MAC_LEN+RAND_LEN, rc->self_randnum_next, RAND_LEN);
+	memcpy(text+2*MAC_LEN+2*RAND_LEN, tempstring, strlen(tempstring));
+	int i;
+	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	kd_hmac_sha256(text, textlen, Keybox.keyrings[i].MasterKey,
+			KEY_LEN, output, outputlen);
+
+	if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
+		if(i >= MAXKEYRINGS-1){
+			printf("Key rings is full!\n");
+			return FALSE;
+		}else{
+			strcpy(Keybox.keyrings[Keybox.nkeys].partner_id, rc->peer_id);
+			i = Keybox.nkeys;
+			Keybox.nkeys++;
+		}
+	}
+
+	memcpy(Keybox.keyrings[i].CK, output, KEY_LEN);
+	memcpy(Keybox.keyrings[i].IK, output+KEY_LEN, KEY_LEN);
+	memcpy(Keybox.keyrings[i].KEK, output+2*KEY_LEN, KEY_LEN);
+	SHA256(output+3*KEY_LEN, RAND_LEN, rc->nonce);
+	free(output);
+	free(text);
+
+	// verify digest
+	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	unsigned char digest[SHA256_DIGEST_SIZE];
+	hmac_sha256((BYTE *)unicast_key_nego_resp_packet, sizeof(UnicastKeyNegoResp)-sizeof(unicast_key_nego_resp_packet->digest),
+			Keybox.keyrings[i].IK, KEY_LEN,
+			digest, SHA256_DIGEST_SIZE);
+	if(memcmp(unicast_key_nego_resp_packet->digest, digest, SHA256_DIGEST_SIZE)){
+		printf("digest verified failed!\n");
+		return FALSE;
+	}
+
+	// get rtp rtcp info
+	/*
+	 * for NVR: rtp_send || rtcp_send || rtp_receive || rtcp_receive
+	 * for IPC: rtp_send || rtcp_send
+	 * for Client: rtp_receive || rtcp_receive
+	 */
+	// Dec(CK, RTP_send || RTCP_send || RTP_receive || RTCP_receive)
+	rc->peer_ports = unicast_key_nego_resp_packet->myports;
+	printf("[wait for sm1] rtp rtcp info is not decrypted !\n");
+
+	// get asue rand number
+	memcpy(rc->peer_randnum_next, (BYTE *)&unicast_key_nego_resp_packet->asuechallenge, sizeof(rc->self_randnum_next));
+
+	return TRUE;
 }
 
-//Unicast key negotiation confirm
-int ProcessUnicastKeyNegoConfirm(RegisterContext *rc, UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet){
+int ProcessUnicastKeyNegoConfirm(RegisterContext *rc, UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet)
+{
+	printf("In ProcessUnicastKeyNegoConfirm:\n");
 
+	// fill flag
+	unicast_key_nego_confirm_packet->flag = 9; // step9
+
+	// fill master key id
+	memcpy(unicast_key_nego_confirm_packet->MK_ID, rc->MK_ID, SHA256_DIGEST_SIZE);
+
+	// fill addid
+	memcpy(unicast_key_nego_confirm_packet->addid.mac1, rc->self_MACaddr.macaddr, sizeof(rc->self_MACaddr.macaddr));
+	memcpy(unicast_key_nego_confirm_packet->addid.mac2, rc->peer_MACaddr.macaddr, sizeof(rc->peer_MACaddr.macaddr));
+
+	// fill asue rand number
+	memcpy((BYTE *)&unicast_key_nego_confirm_packet->asuechallenge, rc->peer_randnum_next, sizeof(rc->peer_randnum_next));
+
+	// fill key negotiation result
+	unicast_key_nego_confirm_packet->key_nego_result = rc->key_nego_result;
+
+	// fill digest
+	int i;
+	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	hmac_sha256((BYTE *)unicast_key_nego_confirm_packet, sizeof(UnicastKeyNegoConfirm)-sizeof(unicast_key_nego_confirm_packet->digest),
+			Keybox.keyrings[i].IK, KEY_LEN,
+			unicast_key_nego_confirm_packet->digest, SHA256_DIGEST_SIZE);
+
+	return TRUE;
 }
 
-int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet){
+// step9+: SIP UA(NVR) - SIP Server
+int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet)
+{
+	printf("In ProcessUnicastKeyNegoConfirm:\n");
 
+	// verify digest
+	int i;
+	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	unsigned char digest[SHA256_DIGEST_SIZE];
+	hmac_sha256((BYTE *)unicast_key_nego_confirm_packet, sizeof(UnicastKeyNegoConfirm)-sizeof(unicast_key_nego_confirm_packet->digest),
+			Keybox.keyrings[i].IK, KEY_LEN,
+			digest, SHA256_DIGEST_SIZE);
+	if(memcmp(unicast_key_nego_confirm_packet->digest, digest, SHA256_DIGEST_SIZE)){
+		printf("digest verified failed!\n");
+		return FALSE;
+	}
+
+	// verify asue rand number
+	if(memcmp(unicast_key_nego_confirm_packet->asuechallenge, rc->self_randnum_next, RAND_LEN)){
+		printf("asue rand number verified failed!\n");
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 /* Scene 1 :
  * IPC access to NVR process
  * (step 21-22)
  */
+// step21: SIP Server - SIP UA(IPC/NVR)
+int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_dist_packet)
+{
+	printf("In ProcessP2PKeyDistribution:\n");
+
+	// fill flag
+	p2p_key_dist_packet->flag = 21; // step21
+
+	/* IK_IPC_NVR = SHA256(IK_IPC || IK_NVR)
+	 * CK_IPC_NVR = SHA256(CK_IPC || CK_NVR)
+	 * both take first 16 bytes
+	 */
+	unsigned int textlen = 2*KEY_LEN;
+	unsigned char *text = malloc(textlen);
+	unsigned char output[SHA256_DIGEST_SIZE];
+	unsigned char IK_IPC[KEY_LEN];
+	unsigned char IK_NVR[KEY_LEN];
+	unsigned char IK_IPC_NVR[KEY_LEN];
+	unsigned char CK_IPC[KEY_LEN];
+	unsigned char CK_NVR[KEY_LEN];
+	unsigned char CK_IPC_NVR[KEY_LEN];
+	int i;
+	if(lc->peer_type == IPC){
+		if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+			printf("No such key ring!\n");
+			return FALSE;
+		}
+		memcpy(IK_IPC, Keybox.keyrings[i].IK, KEY_LEN);
+		memcpy(CK_IPC, Keybox.keyrings[i].CK, KEY_LEN);
+		if((i=getKeyRingNum(&Keybox, lc->target_id)) < 0){
+			printf("No such key ring!\n");
+			return FALSE;
+		}
+		memcpy(IK_NVR, Keybox.keyrings[i].IK, KEY_LEN);
+		memcpy(CK_NVR, Keybox.keyrings[i].CK, KEY_LEN);
+
+		memcpy(text, IK_IPC, KEY_LEN);
+		memcpy(text+KEY_LEN, IK_NVR, KEY_LEN);
+		SHA256(text, textlen, output);
+		memcpy(IK_IPC_NVR, output, KEY_LEN);
+
+		memcpy(text, CK_IPC, KEY_LEN);
+		memcpy(text+KEY_LEN, CK_NVR, KEY_LEN);
+		SHA256(text, textlen, output);
+		memcpy(CK_IPC_NVR, output, KEY_LEN);
+	}else if(lc->peer_type == NVR){
+		if((i=getKeyRingNum(&Keybox, lc->target_id)) < 0){
+			printf("No such key ring!\n");
+			return FALSE;
+		}
+		memcpy(IK_IPC, Keybox.keyrings[i].IK, KEY_LEN);
+		if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+			printf("No such key ring!\n");
+			return FALSE;
+		}
+		memcpy(IK_NVR, Keybox.keyrings[i].IK, KEY_LEN);
+
+		memcpy(text, IK_IPC, KEY_LEN);
+		memcpy(text+KEY_LEN, IK_NVR, KEY_LEN);
+		SHA256(text, textlen, output);
+		memcpy(IK_IPC_NVR, output, KEY_LEN);
+
+		memset(CK_IPC, 0, KEY_LEN);
+		memset(CK_NVR, 0, KEY_LEN);
+	}else{
+		printf("neither IPC nor NVR!!\n");
+	}
+	free(text);
+
+	// fill IK_IPC_NVR_ID, CK_IPC_NVR_ID
+	/*
+	 * IK_IPC_NVR_ID = SHA256(MAC_IPC || MAC_NVR || IK_IPC || IK_NVR)
+	 * CK_IPC_NVR_ID = SHA256(MAC_IPC || MAC_NVR || CK_IPC || CK_NVR)
+	 */
+	textlen = 2*MAC_LEN + 2*KEY_LEN;
+	text = malloc(textlen);
+	if(lc->peer_type == IPC){
+		memcpy(text, lc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+MAC_LEN, lc->target_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+2*MAC_LEN, IK_IPC, KEY_LEN);
+		memcpy(text+2*MAC_LEN+KEY_LEN, IK_NVR, KEY_LEN);
+		SHA256(text, textlen, output);
+		memcpy(p2p_key_dist_packet->IK_P2P_ID, output, SHA256_DIGEST_SIZE);
+
+		memcpy(text+2*MAC_LEN, CK_IPC, KEY_LEN);
+		memcpy(text+2*MAC_LEN+KEY_LEN, CK_NVR, KEY_LEN);
+		SHA256(text, textlen, output);
+		memcpy(p2p_key_dist_packet->CK_P2P_ID, output, SHA256_DIGEST_SIZE);
+	}else if(lc->peer_type == NVR){
+		memcpy(text, lc->target_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+MAC_LEN, lc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+2*MAC_LEN, IK_IPC, KEY_LEN);
+		memcpy(text+2*MAC_LEN+KEY_LEN, IK_NVR, KEY_LEN);
+		SHA256(text, textlen, output);
+		memcpy(p2p_key_dist_packet->IK_P2P_ID, output, SHA256_DIGEST_SIZE);
+		memset(p2p_key_dist_packet->CK_P2P_ID, 0, SHA256_DIGEST_SIZE);
+	}else{
+		printf("neither IPC nor NVR!!\n");
+	}
+	free(text);
+
+	// fill addid
+	if(lc->peer_type == IPC){
+		memcpy(p2p_key_dist_packet->addid.mac1, lc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_key_dist_packet->addid.mac2, lc->target_MACaddr.macaddr, MAC_LEN);
+	}else if(lc->peer_type == NVR){
+		memcpy(p2p_key_dist_packet->addid.mac1, lc->target_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_key_dist_packet->addid.mac2, lc->self_MACaddr.macaddr, MAC_LEN);
+	}else{
+		printf("neither IPC nor NVR!!\n");
+	}
+
+	// fill secure link info
+	/*
+	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_rtp_receive || NVR_rtcp_receive
+	 * for NVR: IK_IPC_NVR || IPC_rtp_send || IPC_rtcp_send
+	 * for Client(?): IK_NVR_Client || NVR_rtp_send || NVR_rtcp_send
+	 */
+	if(lc->peer_type == IPC){
+		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
+		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, CK_IPC_NVR, KEY_LEN);
+		memcpy(p2p_key_dist_packet->secure_link_info+2*KEY_LEN, &lc->target_ports, sizeof(lc->target_ports));
+	}else if(lc->peer_type == NVR){
+		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
+		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, &lc->target_ports, sizeof(lc->target_ports));
+	}else{
+		printf("neither IPC nor NVR!!\n");
+	}
+	printf("[wait for sm1] secure link info is not encrypted !\n");
+
+	// fill rand number
+	gen_randnum((BYTE *)&p2p_key_dist_packet->randnum, RAND_LEN);
+
+	// fill time
+	time(&p2p_key_dist_packet->timestamp);
+
+	// fill digest
+	if(lc->peer_type == IPC){
+		hmac_sha256((BYTE *)p2p_key_dist_packet, sizeof(P2PKeyDistribution)-sizeof(p2p_key_dist_packet->digest),
+				IK_IPC, KEY_LEN,
+				p2p_key_dist_packet->digest, SHA256_DIGEST_SIZE);
+	}else if(lc->peer_type == NVR){
+		hmac_sha256((BYTE *)p2p_key_dist_packet, sizeof(P2PKeyDistribution)-sizeof(p2p_key_dist_packet->digest),
+				IK_NVR, KEY_LEN,
+				p2p_key_dist_packet->digest, SHA256_DIGEST_SIZE);
+	}else{
+		printf("neither IPC nor NVR!!\n");
+	}
+
+	return TRUE;
+}
+
+// step21+: SIP UA(IPC/NVR)
+int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_key_dist_packet)
+{
+	printf("In HandleP2PKeyDistribution:\n");
+
+	// verify digest
+	int i;
+	unsigned char digest[SHA256_DIGEST_SIZE];
+
+	if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	hmac_sha256((BYTE *)p2p_key_dist_packet, sizeof(P2PKeyDistribution)-sizeof(p2p_key_dist_packet->digest),
+			Keybox.keyrings[i].IK, KEY_LEN,
+			digest, SHA256_DIGEST_SIZE);
+	if(memcmp(p2p_key_dist_packet->digest, digest, SHA256_DIGEST_SIZE)){
+		printf("digest verified failed!\n");
+		return FALSE;
+	}
+
+	//verify time
+    time_t  t;
+    time(&t);
+    if((t - p2p_key_dist_packet->timestamp) > TimeThreshold){
+    	return FALSE;
+    }
+
+    // get secure link info
+	/*
+	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_rtp_receive || NVR_rtcp_receive
+	 * for NVR: IK_IPC_NVR || IPC_rtp_send || IPC_rtcp_send
+	 */
+	if( (i=getLinkNum(&Securelinks, lc->target_id)) < 0 ){
+		if(i >= MAXLINKS){
+			printf("Links is full!\n");
+		}else{
+		strcpy(Securelinks.links[Securelinks.nlinks].partner_id, lc->target_id);
+		i = Securelinks.nlinks;
+		Securelinks.nlinks++;
+		}
+	}
+	if(Self_type == IPC){
+		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
+		memcpy(Securelinks.links[i].CK, p2p_key_dist_packet->secure_link_info+KEY_LEN, KEY_LEN);
+		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+2*KEY_LEN, sizeof(Ports));
+	}else if(Self_type == NVR){
+		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
+		memset(Securelinks.links[i].CK, 0, KEY_LEN);
+		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+KEY_LEN, sizeof(Ports));
+	}else{
+		printf("neither IPC nor NVR!!\n");
+	}
+    printf("[wait for sm1] secure link info is not decrypted !\n");
+
+    // get IK_P2P_ID, CK_P2P_ID
+    memcpy(lc->IK_P2P_ID, p2p_key_dist_packet->IK_P2P_ID, SHA256_DIGEST_SIZE);
+    memcpy(lc->CK_P2P_ID, p2p_key_dist_packet->CK_P2P_ID, SHA256_DIGEST_SIZE);
+
+    return TRUE;
+}
 
 /* Scene 1 :
  * IPC communicate to NVR process
@@ -1481,8 +2017,8 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
 //////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////
-//begin interface beteewn IPC and NVR
-/*uac Transport beteewn IPC and NVR interface begin*/
+//begin interface between IPC and NVR
+/*uac Transport between IPC and NVR interface begin*/
 
 int uac_get_Transportsdp(char *sdp_data)
 {

@@ -275,6 +275,17 @@ int decodeFromChar(char *data,int lenth)
 	return 1;
 }
 
+int getSelfMac(char*mac)
+{
+	mac[0]=0x00;
+	mac[1]=0x0c;
+	mac[2]=0x29;
+	mac[3]=0xd4;
+	mac[4]=0x25;
+	mac[5]=0x3e;
+	return 1;
+	}
+
 int init_Contextconf(char * file)
 {
 	RegisterCon=(RegisterContext *)malloc(sizeof(RegisterContext));
@@ -287,8 +298,8 @@ int init_Contextconf(char * file)
 	    	//device_info.cfgFile=cfgFile;
 
 	    	char *value=(char *)malloc(sizeof(char)*20);
-	    	get_conf_value( "radius_id",value,file);
-	    	RegisterCon->radius_id=value;
+	    	get_conf_value( "radius_id",RegisterCon->radius_id,file);
+	    	//RegisterCon->radius_id=value;
 
 	    	value=(char *)malloc(sizeof(char)*20);
 	    	get_conf_value( "self_type", value,file);
@@ -314,25 +325,33 @@ int init_Contextconf(char * file)
 
 	    	free(value);
 
-	    	value=(char *)malloc(sizeof(char)*20);
-	    	get_conf_value( "self_id",value,file);
-	    	RegisterCon->self_id=value;
+	    	//value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "self_id",RegisterCon->self_id,file);
+	    	//RegisterCon->self_id=value;
 
-	    	value=(char *)malloc(sizeof(char)*20);
-	    	get_conf_value( "self_password",value,file);
-	    	RegisterCon->self_password=value;
+	    	//value=(char *)malloc(sizeof(char)*20);
+	    	get_conf_value( "self_password",RegisterCon->self_password,file);
+	    	//RegisterCon->self_password=value;
 
-	    	RegisterCon->keybox.nkeys=0;
+	    	getSelfMac(RegisterCon->self_MACaddr.macaddr);
+
+	    	printf("macaddr:%x\n",RegisterCon->self_MACaddr.macaddr[0]);
+	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[1]);
+	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[2]);
+	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[3]);
+	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[4]);
+	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[5]);
+	    	Keybox.nkeys=0;
 
 	    	if(Self_type!=SIPserver)
 	    	{
-	    		value=(char *)malloc(sizeof(char)*20);
-	    		get_conf_value("server_ip",value,file);
-	    		RegisterCon->peer_ip=value;
+	    		//value=(char *)malloc(sizeof(char)*20);
+	    		get_conf_value("server_ip",RegisterCon->peer_ip,file);
+	    		//RegisterCon->peer_ip=value;
 
-	    		value=(char *)malloc(sizeof(char)*20);
-	    		get_conf_value("server_id",value,file);
-	    		RegisterCon->peer_id=value;
+	    		//value=(char *)malloc(sizeof(char)*20);
+	    		get_conf_value("server_id",RegisterCon->peer_id,file);
+	    		//RegisterCon->peer_id=value;
 	    	}
 
 	        close(fd);

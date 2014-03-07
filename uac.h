@@ -66,6 +66,8 @@ int uac_send_info(sessionId inviteId);
 int uac_send_message(sessionId inviteId,char * type ,
 		char * type_info,char * message_str);
 
+int uac_send_noSessionMessage(char * to, char * from, char * route,char * content);
+
 //获取地址
 //返回IP地址字符串
 int getlocalip(char* outip);
