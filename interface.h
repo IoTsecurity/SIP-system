@@ -268,7 +268,7 @@ enum ConnectStatus{
 	LinkSession
 };
 
-#define MAXIDSTRING 64
+#define MAXIDSTRING 32
 #define MAXKEYRINGS 10
 typedef struct KeyRing{
 	char partner_id[MAXIDSTRING];
@@ -297,16 +297,16 @@ typedef struct Ports{
 }Ports;
 
 typedef struct RegisterContext{
-	char *radius_id;
+	char radius_id[MAXIDSTRING];
 
-	char *self_id;
+	char self_id[MAXIDSTRING];
 	MACaddr self_MACaddr;
-	char *self_password;
+	char self_password[MAXIDSTRING];
 
-	char *peer_id;
-	char *peer_ip;
+	char peer_id[MAXIDSTRING];
+	char peer_ip[MAXIDSTRING];
 	MACaddr peer_MACaddr;
-	char *peer_password;
+	char peer_password[MAXIDSTRING];
 	//enum DeviceType peer_type;
 
 	// used in register part
