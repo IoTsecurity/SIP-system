@@ -335,14 +335,6 @@ int init_Contextconf(char * file)
 
 	    	getSelfMac(RegisterCon->self_MACaddr.macaddr);
 
-
-	    	printf("macaddr:%x\n",RegisterCon->self_MACaddr.macaddr[0]);
-	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[1]);
-	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[2]);
-	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[3]);
-	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[4]);
-	    	printf("%02x\n",RegisterCon->self_MACaddr.macaddr[5]);
-
 	    	Keybox.nkeys=0;
 
 	    	if(Self_type!=SIPserver)

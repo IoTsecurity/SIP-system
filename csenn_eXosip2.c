@@ -1119,7 +1119,6 @@ void csenn_eXosip_processEvent(void)
 int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * responseSdp)
 {
 	osip_message_t *invite;
-	int port=5070;
 	int i;// optionnal route header
 	char to_[100];
 	snprintf (to_, 100,"sip:%s", to);
@@ -1166,13 +1165,13 @@ int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * resp
 	    	  eXosip_event_t *je;
 	          je = eXosip_event_wait (0, 1000);
 
-	          if (je == NULL)
+	       if (je == NULL)
 	        {
 	          printf ("No response or the time is over!\n");
 	          break;
 	        }
 
-	          switch (je->type)
+	       switch (je->type)
 	        {
 	        case EXOSIP_CALL_INVITE:
 	          printf ("a new invite reveived!\n");
@@ -1193,6 +1192,7 @@ int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * resp
 	          osip_message_get_body (je->response, 0, &body);
 	          //printf ("I get the msg is: %s\n", body->body);
 	          //(*responseSdp)=(char *)malloc (body->length*sizeof(char));
+	          if(body!=NULL)
 	          snprintf (responseSdp, body->length,"%s", body->body);
 
 	           //response a ack
@@ -1211,7 +1211,7 @@ int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * resp
 	          printf ("other response!\n");
 	          break;
 	        }
-	          eXosip_event_free (je);
+	       eXosip_event_free (je);
 
 	        }
 	return 0;
