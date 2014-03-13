@@ -995,14 +995,6 @@ int HandleWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_ac
 		return FALSE;
 		}
 
-	//verify FLAG
-	if(annotation == 2)
-		printf("verify FLAG:\n");
-	if(access_auth_requ_packet->flag != 0x04){
-		printf("verify flag failed.\n");
-		return FALSE;
-	}
-
 	//verify auth identity, is same auth active packet
 	if(annotation == 2)
 		printf("verify auth identity:\n");
