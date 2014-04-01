@@ -45,12 +45,13 @@ int main(int argc,char *argv[])
 		init_conf("default.cfg");
 		uac_init();
 
-		printf("1: regester\n");
+		printf("1: register\n");
 		printf("2: invite\n");
 		printf("3: send info\n");
 		printf("4: send EOF message\n");
 		printf("5: send nosession message\n");
 		printf("6: key_nego\n");
+		printf("7: key distribute\n");
 		printf("\n");
 		printf("a: bye\n");
 		printf("b: run as a uas\n");
@@ -105,7 +106,10 @@ int main(int argc,char *argv[])
 					uac_send_noSessionMessage(to,from, NULL,"this is no session message",NULL);
 					break;
 				case '6':
-					key_nego();
+					uac_key_nego();
+					break;
+				case '7':
+					uac_key_distribute();
 					break;
 				case 'a':
 					uac_bye(inviteId);

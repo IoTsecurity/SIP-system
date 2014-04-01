@@ -8,6 +8,7 @@ C_SRCS += \
 ../dispatch.c \
 ../interface.c \
 ../main.c \
+../sip_com.c \
 ../uac.c \
 ../uas.c 
 
@@ -16,6 +17,7 @@ OBJS += \
 ./dispatch.o \
 ./interface.o \
 ./main.o \
+./sip_com.o \
 ./uac.o \
 ./uas.o 
 
@@ -24,6 +26,7 @@ C_DEPS += \
 ./dispatch.d \
 ./interface.d \
 ./main.d \
+./sip_com.d \
 ./uac.d \
 ./uas.d 
 

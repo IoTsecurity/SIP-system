@@ -22,10 +22,10 @@
 #ifndef UAC_H
 #define UAC_H
 
-#define CharLen 50
+//#define CharLen 50
 
-char *auth_request_packet_data;
-extern char *auth_request_packet_data;
+//char *auth_request_packet_data;
+//extern char *auth_request_packet_data;
 
 /*================================================================
 * funtion name：uac_init
@@ -69,14 +69,9 @@ int uac_send_message(sessionId inviteId,char * type ,char * type_info,char * mes
 
 int uac_send_noSessionMessage(char * to, char * from, char * route,char * content,char * subject);
 
-int waitfor(eXosip_event_type_t t,eXosip_event_t **event);
+int uac_key_nego();
 
-//获取地址
-//返回IP地址字符串
-int getlocalip(char* outip);
-
-//get the key_value from the configure file by the key_name
-int get_conf_value( char *key_name, char *value,char *filename);
+int uac_waitfor(eXosip_event_type_t t,eXosip_event_t **event,sessionId id);
 
 //init the configure file
 int init_conf(char * file);

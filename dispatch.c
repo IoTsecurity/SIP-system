@@ -22,15 +22,7 @@
 
 #include "dispatch.h"
 #include "interface.h"
-
-/*
-int uas_function_run(funcP fun_name,void(*arg))
-{
-	(*fun_name)(arg);
-	return 0;
-	}
-*/
-
+#include "sip_com.h"
 
 int interface_init()
 {
@@ -233,11 +225,11 @@ int get_register2_data(char *data,char * in_data)
 	if(!ProcessWAPIProtocolAccessAuthRequest(RegisterCon,(AuthActive *)in_data,(AccessAuthRequ *)(data)))
 	{
 		printf("ProcessWAPIProtocolAccessAuthRequest error\n");
-		return 1;
+		return 0;
 	}
 
 	printf("ProcessWAPIProtocolAccessAuthRequest success\n");
-	return 0;}
+	return 1;}
 
 int handle_response_data(void *data,void * in_data)
 {
@@ -251,109 +243,4 @@ int handle_response_data(void *data,void * in_data)
 //end register interface
 
 
-int codeToChar(char *data,int lenth)
-{
-	int i,j;
-	i=lenth-1;
-	j=lenth/2-1;
-	for(i=lenth-1;i>=0;i=i-2,j--)
-	{
-		data[i]=(data[j]&0x0f)+0x30;
-		data[i-1] = ((data[j]>>4)&0x0f)+0x30;
-	}
-	return 1;
-}
-int decodeFromChar(char *data,int lenth)
-{
-	int i,j;
-	i=1;
-	j=0;
-	for(j=0;i<lenth ;i=i+2,j++)
-	{
-		data[j]=(data[i] - 0x30 ) +((data[i-1]-0x30) <<4);
-	}
-	return 1;
-}
 
-int getSelfMac(char*mac)
-{
-	mac[0]=0x00;
-	mac[1]=0x0c;
-	mac[2]=0x29;
-	mac[3]=0xd4;
-	mac[4]=0x25;
-	mac[5]=0x3e;
-	return 1;
-	}
-
-int init_Contextconf(char * file)
-{
-	RegisterCon=(RegisterContext *)malloc(sizeof(RegisterContext));
-
-	int fd=open(file,O_RDONLY);
-	    if(fd>2){   //确保文件存在
-	    	//static  char * cfgFile ;
-	    	//cfgFile=(char *)malloc(sizeof(char)*30);
-	    	//strcpy(cfgFile,file);
-	    	//device_info.cfgFile=cfgFile;
-
-	    	char *value=(char *)malloc(sizeof(char)*20);
-	    	get_conf_value( "radius_id",RegisterCon->radius_id,file);
-	    	//RegisterCon->radius_id=value;
-
-	    	value=(char *)malloc(sizeof(char)*20);
-	    	get_conf_value( "self_type", value,file);
-	    	if(strcmp(value,"SIPserver")==0)
-	    	{
-	    		Self_type=SIPserver;
-	    	}
-	    	else if(strcmp(value,"IPC")==0)
-	    	{
-	    		Self_type=IPC;
-	    		//user_type=USER_TYPE_IPC;
-	    	}
-	    		else if(strcmp(value,"CLIENT")==0)
-	    	{
-	    		//Self_type=CLIENT;
-	    		//user_type=USER_TYPE_CLIENT;
-	    	}
-	    		else if(strcmp(value,"NVR")==0)
-	    	{
-	    		Self_type=NVR;
-	    		//user_type=USER_TYPE_NVR;
-	    	}
-
-	    	free(value);
-
-	    	//value=(char *)malloc(sizeof(char)*20);
-	    	get_conf_value( "self_id",RegisterCon->self_id,file);
-	    	//RegisterCon->self_id=value;
-
-	    	//value=(char *)malloc(sizeof(char)*20);
-	    	get_conf_value( "self_password",RegisterCon->self_password,file);
-	    	//RegisterCon->self_password=value;
-
-	    	getSelfMac(RegisterCon->self_MACaddr.macaddr);
-
-	    	Keybox.nkeys=0;
-
-	    	if(Self_type!=SIPserver)
-	    	{
-	    		//value=(char *)malloc(sizeof(char)*20);
-	    		get_conf_value("server_ip",RegisterCon->peer_ip,file);
-	    		//RegisterCon->peer_ip=value;
-
-	    		//value=(char *)malloc(sizeof(char)*20);
-	    		get_conf_value("server_id",RegisterCon->peer_id,file);
-	    		//RegisterCon->peer_id=value;
-	    	}
-
-	        close(fd);
-	        printf("open config file:%s success\n",file);
-	    }
-	    else{
-	       printf("can not open config file:%s\n",file);
-	       exit(1);
-	    }
-	return 1;
-	}

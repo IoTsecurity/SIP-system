@@ -24,6 +24,7 @@ int g_did_fileDown ;//= 0;/*会话ID/用来分辨不同的会话：视音频文�
 typedef struct _sessionId{
 	int cid;
 	int did;
+	char call_id[30];
 
 }sessionId;
 

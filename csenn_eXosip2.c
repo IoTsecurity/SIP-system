@@ -1221,6 +1221,13 @@ int csenn_eXosip_invit(sessionId * id, char * to, char * sdpMessage, char * resp
 int csenn_eXosip_bye(sessionId id)
 {
 	eXosip_call_terminate( id.cid, id.did);
+	eXosip_event_t *g_event  = NULL;/*消息事件*/
+	g_event = eXosip_event_wait(0, 500);/*侦听消息的到来*/
+	eXosip_lock();
+	eXosip_default_action(g_event);
+	eXosip_automatic_refresh();
+	eXosip_unlock();
+	printf("bye g_event->cid:%d\n",g_event->cid);
 	return 0;
 }
 

@@ -24,15 +24,15 @@ int uac_init()
 {
 	interface_init();
 			csenn_eXosip_launch();
-			static  char eXosip_server_id[CharLen];//           = "34020000001180000002";
-			static  char eXosip_server_ip[CharLen];//           = "192.168.17.127";//"123456";//
-			static  char eXosip_server_port[CharLen];//         = "5060";
-			static  char eXosip_ipc_id[CharLen];//              = "11111";//"34020000001180000002";//
-			static  char eXosip_ipc_pwd[CharLen];//             = "123456";//"12345678";//
-			static  char eXosip_ipc_ip[CharLen];//              = "192.168.171.128";
-			static  char eXosip_ipc_port[CharLen];//            = "5060";
+			static  char eXosip_server_id[CHARLEN];//           = "34020000001180000002";
+			static  char eXosip_server_ip[CHARLEN];//           = "192.168.17.127";//"123456";//
+			static  char eXosip_server_port[CHARLEN];//         = "5060";
+			static  char eXosip_ipc_id[CHARLEN];//              = "11111";//"34020000001180000002";//
+			static  char eXosip_ipc_pwd[CHARLEN];//             = "123456";//"12345678";//
+			static  char eXosip_ipc_ip[CHARLEN];//              = "192.168.171.128";
+			static  char eXosip_ipc_port[CHARLEN];//            = "5060";
 
-			static  char radius_id[CharLen];//            = "5060";
+			static  char radius_id[CHARLEN];//            = "5060";
 			//static  char sipserver_id[50];//            = "5060";
 
 			get_conf_value("radius_id",radius_id,device_info.cfgFile);
@@ -48,12 +48,14 @@ int uac_init()
 			//printf("eXosip_ipc_id:%s\n",eXosip_ipc_id);
 			get_conf_value("self_password",eXosip_ipc_pwd,device_info.cfgFile);
 			//printf("eXosip_ipc_pwd:%s\n",eXosip_ipc_pwd);
-			get_conf_value("self_ip",eXosip_ipc_ip,device_info.cfgFile);
+			//get_conf_value("self_ip",eXosip_ipc_ip,device_info.cfgFile);
+			//getlocalip(eXosip_ipc_ip);
+			getNetInfo(eXosip_ipc_ip,NULL);
 			//printf("eXosip_ipc_ip:%s\n",eXosip_ipc_ip);
 			get_conf_value("self_port",eXosip_ipc_port,device_info.cfgFile);
 			//printf("eXosip_ipc_port:%s\n",eXosip_ipc_port);
 
-			char user_type_temp[CharLen];
+			char user_type_temp[CHARLEN];
 			get_conf_value("self_type",user_type_temp,device_info.cfgFile);
 
 			if(strcmp(user_type_temp,"IPC")==0)
@@ -70,7 +72,7 @@ int uac_init()
 			}
 
 			device_info.server_id           = eXosip_server_id;
-			getlocalip(eXosip_ipc_ip);
+			//getlocalip(eXosip_ipc_ip);
 			device_info.server_ip           = eXosip_server_ip;
 			device_info.server_port         = eXosip_server_port;
 			device_info.ipc_id              = eXosip_ipc_id;
@@ -105,6 +107,13 @@ int uac_register()
 	retry:
 		eXosip_lock();
 		g_register_id = eXosip_register_build_initial_register(from, proxy, NULL, expires, &reg);
+		char mac[12];
+		memset(mac,0,12);
+		getNetInfo(NULL,mac);//printf("mac:%02x %02x %02x %02x %02x %02x",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+		codeToChar(mac,sizeof(mac));
+		char mac_subject[20];
+		sprintf(mac_subject,"MAC:%s\n",mac);
+		osip_message_set_subject(reg,mac_subject);
 		osip_message_set_authorization(reg, "Capability algorithm=\"H:MD5\"");
 		if (0 > g_register_id)
 		{
@@ -141,7 +150,38 @@ int uac_register()
 				if ((NULL != je->response)&&(401 == je->response->status_code))
 				{
 					char * auth_active_packet_data=NULL;
-					osip_body_t *body;printf("enter0\n");
+					osip_body_t *body;
+
+					osip_header_t * subject;
+					osip_message_get_subject(je->response,0,&subject);
+					if(subject==NULL)
+					{
+						printf("no subject\n");
+						return 0;
+					}
+					printf("subject->hvalue:%s\n",subject->hvalue);
+					char mac[12];
+					memset(mac, 0, 12);
+					memcpy(mac,subject->hvalue,4);
+					if(!strcmp(mac,"MAC:"))
+					{
+						memcpy(mac,subject->hvalue+4,12);
+						decodeFromChar(mac,12);
+						memcpy(RegisterCon->peer_MACaddr.macaddr,mac,6);
+						//printf("peer_MACaddr:%02x %02x %02x %02x %02x %02x",RegisterCon->peer_MACaddr.macaddr[0],
+								//RegisterCon->peer_MACaddr.macaddr[1],
+								//RegisterCon->peer_MACaddr.macaddr[2],
+								//RegisterCon->peer_MACaddr.macaddr[3],
+								//RegisterCon->peer_MACaddr.macaddr[4],
+								//RegisterCon->peer_MACaddr.macaddr[5]);
+					}
+					else
+					{
+						printf("subject not match\n");
+						return 0;
+					}
+
+
 					osip_message_get_body (je->response, 0, &body);
 					printf("body->length:%d\n",body->length);
 					if(!auth_active_packet_data)
@@ -153,7 +193,12 @@ int uac_register()
 
 					memcpy(auth_active_packet_data,body->body, body->length);
 					decodeFromChar(auth_active_packet_data,body->length);
-					handle_401_Unauthorized_data(auth_active_packet_data);
+					if(!handle_401_Unauthorized_data(auth_active_packet_data))
+					{
+						printf("handle_401_Unauthorized_data error\n");
+						return 0;
+					}
+
 
 					//printf("message:%s\n",message);
 					if(0/*when receive 401Unauthorized package，send ACK and Regester*/)
@@ -183,7 +228,11 @@ int uac_register()
 
 					memset(auth_request_packet_data,0, sizeof(AccessAuthRequ)*2);
 
-					get_register2_data(auth_request_packet_data,auth_active_packet_data);
+					if(!get_register2_data(auth_request_packet_data,auth_active_packet_data))
+					{
+						printf("get_register2_data error\n");
+						return 0;
+					}
 					//printf("enter2\n");
 					codeToChar(auth_request_packet_data,sizeof(AccessAuthRequ)*2);
 					//printf("%s",auth_request_packet_data);
@@ -229,7 +278,11 @@ int uac_register()
 				message=(char *)malloc (body->length*sizeof(char));
 				memcpy(message,body->body, body->length);
 				//printf("%s",message);
-				handle_response_data(message,auth_request_packet_data);
+				if(!handle_response_data(message,auth_request_packet_data))
+				{
+					printf("handle_response_data error\n");
+					return 0;
+				}
 
 				/*
 				//send key agreement package  发送密钥协商包
@@ -276,13 +329,18 @@ int uac_invite(sessionId * inviteId,char *to,char * sdp_message,char * responseS
 
 int uac_bye(sessionId inviteId)
 {
-	return csenn_eXosip_bye(inviteId);
+	eXosip_lock();
+	eXosip_call_terminate( inviteId.cid, inviteId.did);
+	eXosip_unlock();
+	eXosip_event_t *g_event  = NULL;/*消息事件*/
+	uac_waitfor(EXOSIP_CALL_MESSAGE_ANSWERED,&g_event,inviteId);
+	if(!g_event)
+	{
+		printf("no bye response\n");
+	}
 
-	//interface 3: do something with responseSdp ;
-	//turn off the steam of the video transport
-	//end interface 3:
-
-	//return 0;
+	eXosip_event_free (g_event);
+	return 1;
 	}
 
 int uac_send_info(sessionId inviteId)
@@ -309,7 +367,6 @@ int uac_send_message(sessionId inviteId,char * message_type ,char * context_type
 	int i;
 	eXosip_lock ();
 	i = eXosip_call_build_request (inviteId.did,message_type/*"MESSAGE" or "INFO"*/, &message);
-	printf("i:%d\n",i);
 	if (i == 0)
 	{
 		//snprintf (message_body, 999, message_str/*"message_info"*/);
@@ -363,9 +420,10 @@ int uac_send_noSessionMessage(char * to, char * from, char * route,char * conten
 	return 1;
 	}
 
-int key_nego()
+int uac_key_nego()
 {
 	eXosip_event_t *g_event;
+	osip_header_t * subject;
 	char to[100];
 	char from[100];
 
@@ -375,56 +433,72 @@ int key_nego()
 	//uac_send_noSessionMessage(to,from, NULL,"this is no KEY_NAGO1 message","KEY_NAGO1\n");
 	sessionId id;
 	uac_sendInvite(&id,device_info.server_ip,"this is no KEY_NAGO1 message","text/code","KEY_NAGO1\n");
-	if(!waitfor(EXOSIP_CALL_ANSWERED,&g_event))
-	{
-		printf("g_event->type:%d\n",g_event->type);
-		printf("not the right response\n");
-		return 0;
-	}
+	//printf("uac_sendInvite sucess\n");
+	uac_waitfor(EXOSIP_CALL_ANSWERED,&g_event,id);
 	if(g_event==NULL)
 	{
 		printf("no response\n\n");
 		return 0;
 	}
-	osip_header_t * dest;
-	osip_message_get_subject(g_event->response,0,&dest);
-	if(dest==NULL)
+	id.cid=g_event->cid;
+	id.did=g_event->did;
+	if(g_event->type!= EXOSIP_CALL_ANSWERED )//&& g_event->type!=EXOSIP_CALL_MESSAGE_ANSWERED)
+	{
+		//if(g_event->response )
+			//printf("g_event->response->message:\n");
+		//if(g_event->response->call_id)
+		//printf("g_event->response->call_id->number:%s\n",g_event->response->call_id->number);
+		printf("g_event->type:%d\n",g_event->type);
+		printf("g_event->cid:%d\n",g_event->cid);
+		printf("not the right response\n");
+		return 0;
+	}
+	osip_message_t *ack = NULL;
+	eXosip_call_build_ack (id.did, &ack);
+	if(!eXosip_call_send_ack (id.did, ack))
+	{
+		printf("send_ack success\n");
+	}
+
+	osip_message_get_subject(g_event->response,0,&subject);
+	if(subject==NULL)
 	{
 		printf("no subject\n");
 		return 0;
 	}
-	printf("dest->hvalue:%s\n",dest->hvalue);
-	if(!strcmp(dest->hvalue,"KEY_NAGO2"))
+	printf("subject->hvalue:%s\n",subject->hvalue);
+	if(!strcmp(subject->hvalue,"KEY_NAGO2"))
 	{
 		//do something handle the KEY_NAGO2
 		id.cid=g_event->cid;
 		id.did=g_event->did;
 		osip_message_t *ack = NULL;
 		printf("id.cid:%d id.did:%d",id.cid,id.did);
-		eXosip_call_build_ack (id.did, &ack);
-		eXosip_call_send_ack (id.cid, ack);
+		//eXosip_call_build_ack (id.did, &ack);
+		//eXosip_call_send_ack (id.cid, ack);
 		printf("KEY_NAGO2 success\n");
 		eXosip_event_free (g_event);
 	}
 	else
 	{
 		printf("not KEY_NAGO2\n");
+		printf("g_event->cid:%d\n",g_event->cid);
 		eXosip_event_free (g_event);
 		return 0;
 
 	}
+	g_event=NULL;
 
 	//key_nego 3
-	//uac_send_noSessionMessage(to,from, NULL,"this is no KEY_NAGO2 message","KEY_NAGO3");
-	printf("+1\n");
-	if(!uac_send_message(id,"MESSAGE","text/code","this is no KEY_NAGO3 message","KEY_NAGO3"))
+	if(uac_send_message(id,"MESSAGE","text/code","this is no KEY_NAGO3 message","KEY_NAGO3")!=0)
 	{
-		printf("uac_send_message\n");
+		printf("uac_send_message error\n");
 		return 0;
 	}
-	printf("+2\n");
-	if(!waitfor(EXOSIP_CALL_ANSWERED,&g_event))
+	if(!uac_waitfor(EXOSIP_CALL_MESSAGE_ANSWERED,&g_event,id))
 	{
+		printf("g_event->type:%d\n",g_event->type);
+		printf("g_event->cid:%d\n",g_event->cid);
 		printf("not the right response\n");
 		return 0;
 	}
@@ -433,38 +507,124 @@ int key_nego()
 		printf("no response\n\n");
 		return 0;
 	}
-	osip_message_get_subject(g_event->request,0,&dest);
-	printf("dest->hvalue:%s",dest->hvalue);
-	if(!strcmp(dest->hvalue,"KEY_NAGO4"))
+	osip_message_get_subject(g_event->response,0,&subject);
+	printf("subject->hvalue:%s",subject->hvalue);
+	if(!strcmp(subject->hvalue,"KEY_NAGO4"))
 	{
-		printf("not KEY_NAGO4\n");
+		//do something handle the KEY_NAGO 4
+		printf("KEY_NAGO4 sucess\n");
 		eXosip_event_free (g_event);
+		uac_bye(id);
 		return 0;
 	}
 	else
 	{
-		//do something handle the KEY_NAGO 4
+		printf("not KEY_NAGO4\n");
+		//printf("g_event->cid:%d\n",g_event->cid);
 		eXosip_event_free (g_event);
+		uac_bye(id);
+		return 0;
 	}
 
 	return 1;
 }
 
-int waitfor(eXosip_event_type_t t,eXosip_event_t **event)
+int uac_key_distribute()
+{
+	eXosip_event_t *g_event;
+	osip_header_t * subject;
+	char to[100];
+	char from[100];
+
+	//key_nego 1
+	snprintf(to, 50,"sip:%s@%s:%s",device_info.server_id,device_info.server_ip,device_info.server_port);
+	snprintf(from, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
+	//uac_send_noSessionMessage(to,from, NULL,"this is no KEY_NAGO1 message","KEY_NAGO1\n");
+	sessionId id;
+	uac_sendInvite(&id,device_info.server_ip,"peer userid:11111\n","text/code","KEY_DISTRIBUTE1\n");
+	//printf("uac_sendInvite sucess\n");
+	uac_waitfor(EXOSIP_CALL_ANSWERED,&g_event,id);
+	if(g_event==NULL)
+	{
+		printf("no response\n\n");
+		return 0;
+	}
+	id.cid=g_event->cid;
+	id.did=g_event->did;
+	if(g_event->type!= EXOSIP_CALL_ANSWERED )//&& g_event->type!=EXOSIP_CALL_MESSAGE_ANSWERED)
+	{
+		//if(g_event->response )
+			//printf("g_event->response->message:\n");
+		//if(g_event->response->call_id)
+		//printf("g_event->response->call_id->number:%s\n",g_event->response->call_id->number);
+		printf("g_event->type:%d\n",g_event->type);
+		printf("g_event->cid:%d\n",g_event->cid);
+		printf("not the right response\n");
+		return 0;
+	}
+	osip_message_t *ack = NULL;
+	eXosip_call_build_ack (id.did, &ack);
+	if(!eXosip_call_send_ack (id.did, ack))
+	{
+		printf("send_ack success\n");
+	}
+
+	osip_message_get_subject(g_event->response,0,&subject);
+	if(subject==NULL)
+	{
+		printf("no subject\n");
+		return 0;
+	}
+	printf("subject->hvalue:%s\n",subject->hvalue);
+	if(!strcmp(subject->hvalue,"KEY_DISTRIBUTE2"))
+	{
+		//do something handle the KEY_DISTRIBUTE2
+		id.cid=g_event->cid;
+		id.did=g_event->did;
+		osip_message_t *ack = NULL;
+		printf("id.cid:%d id.did:%d",id.cid,id.did);
+		printf("KEY_DISTRIBUTE2 success\n");
+		eXosip_event_free (g_event);
+		uac_bye(id);
+	}
+	else
+	{
+		printf("not KEY_DISTRIBUTE2\n");
+		printf("g_event->cid:%d\n",g_event->cid);
+		eXosip_event_free (g_event);
+		uac_bye(id);
+		return 0;
+
+	}
+	return 1;
+}
+
+int uac_waitfor(eXosip_event_type_t t,eXosip_event_t **event,sessionId id)
 {
 	eXosip_event_t *g_event  = NULL;/*消息事件*/
 
 	while(1)
 	{
 	/*等待新消息的到来*/
-		g_event = eXosip_event_wait(32, 500);/*侦听消息的到来*/
+		g_event = eXosip_event_wait(0, 50);/*侦听消息的到来*/
 		eXosip_lock();
 		eXosip_default_action(g_event);
 		eXosip_automatic_refresh();/*Refresh REGISTER and SUBSCRIBE before the expiration delay*/
 		eXosip_unlock();
 		if (NULL == g_event)
 		{
-			break;
+			continue;
+		}
+		if(g_event->request==NULL)
+		{
+			continue;
+		}
+		//printf("id.call_id:%s\n",id.call_id);
+		//printf("g_event->request->call_id->number:%s\n",g_event->request->call_id->number);
+		if(strcmp(id.call_id,g_event->request->call_id->number))
+		{
+			//printf("enter0\n");
+			continue;
 		}
 		if(g_event->type==t)
 		{
@@ -506,119 +666,20 @@ int uac_sendInvite(sessionId * id, char * to, char * message, char *meessageType
 	}
 	eXosip_lock ();
 	i = eXosip_call_send_initial_invite (invite);
+	eXosip_unlock ();
+	//printf("invite->call_id->number:%s size:%d\n",invite->call_id->number,strlen(invite->call_id->number));
+	//id->call_id=(char *)malloc(sizeof(char)*(strlen(invite->call_id->number)+1));
+	memcpy(id->call_id,invite->call_id->number,strlen(invite->call_id->number)+1);
 
 	//if (i > 0)
 	//{
 	//eXosip_call_set_reference (i, "ssss");
 	//}
-	eXosip_unlock ();
+
 	return 0;
 
 }
 
-//获取地址
-//返回IP地址字符串
-int getlocalip(char* outip)
-{
-    int i=0;
-    int sockfd;
-    struct ifconf ifconf;
-    char *buf = (char*)malloc(512);
-    struct ifreq *ifreq;
-    char* ip;
-
-    //初始化ifconf
-    ifconf.ifc_len = 512;
-    ifconf.ifc_buf = buf;
-
-    if((sockfd = socket(AF_INET, SOCK_DGRAM, 0))<0)
-    {
-        return -1;
-    }
-    ioctl(sockfd, SIOCGIFCONF, &ifconf);    //获取所有接口信息
-    close(sockfd);
-    //接下来一个一个的获取IP地址
-    ifreq = (struct ifreq*)buf;
-    i = ifconf.ifc_len/sizeof(struct ifreq);
-    char *pos = outip;
-    int count;
-    for(count = 0; (count < 1 && i > 0); i--)
-    {
-        ip = inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr);
-        if(strncmp(ip,"127.0.0.1", 3)==0)  //排除127.x.x.x，继续下一个
-        {
-            ifreq++;
-            continue;
-        }else
-        {
-            printf("%s\n", ip);
-            strcpy(pos,ip);
-            int len = strlen(ip);
-            pos[len] = '\t';
-            pos += len+1;
-            count ++;
-            ifreq++;
-        }
-    }
-    free(buf);
-    return 0;
-
-}
-
-int get_conf_value( char *key_name, char *value,char *filename)
-{
-	char * file=filename;//device_info.cfgFile;
-    int res;
-    int fd = open(file,O_RDONLY);
-    if(fd > 2){
-        res = 0;
-        char c;
-        char *ptrk=key_name;
-        char *ptrv=value;
-        while((read(fd,&c,1))==1)
-         {
-           if(c == (*ptrk)){
-             do{
-            	 	ptrk ++;
-					read(fd,&c,1);
-                }while(c == (*ptrk));
-				if(c=='='&&(*ptrk)=='\0'){
-					while(1)
-						{
-						read(fd,&c,1);
-						if(c != '\n')
-							{
-								(*ptrv) = c;
-								ptrv ++;
-							}
-						else{
-								(*ptrv) = '\0';
-								break;
-							}
-						}
-					res = 1;
-					break;
-				}else{
-					do{
-					read(fd,&c,1);
-					}while(c != '\n');
-					ptrk=key_name;
-				}
-			}
-		   else
-			{
-			do{
-				read(fd,&c,1);
-			}while(c != '\n');
-			ptrk=key_name;
-			}
-		}
-		close(fd);
-		}else{
-		res = -1;
-	}
-    return res;
-}
 int init_conf(char * file)
 {
 
