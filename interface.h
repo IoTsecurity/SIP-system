@@ -471,6 +471,8 @@ typedef struct SLink{
 	char partner_id[MAXIDSTRING];
 	unsigned char IK[KEY_LEN];
 	unsigned char IK_ID[SHA256_DIGEST_SIZE];
+	unsigned char reauth_IK[SHA256_DIGEST_SIZE];
+	unsigned char reauth_IK_ID[SHA256_DIGEST_SIZE];
 	unsigned char CK[KEY_LEN];
 	unsigned char CK_ID[SHA256_DIGEST_SIZE];
 	Ports ports;
@@ -521,6 +523,29 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
  * IPC communicate to NVR process
  * (step 23-30)
  */
+typedef struct _P2PCommContext{
+	char self_id[MAXIDSTRING];
+	MACaddr self_MACaddr;
+	char self_randnum[RAND_LEN];
+
+	char peer_id[MAXIDSTRING];
+	enum DeviceType peer_type;
+	MACaddr peer_MACaddr;
+	char peer_randnum[RAND_LEN];
+}P2PCommContext;
+
+// step23
+typedef struct _P2PAuthToken
+{
+    BYTE                         flag;                            /* 标识FLAG */
+	unsigned char                IK_P2P_ID[SHA256_DIGEST_SIZE];
+    addindex                     addid;                             /* 地址索引ADDID */
+    BYTE                         randnum[RAND_LEN];
+    unsigned char 				 digest[SHA256_DIGEST_SIZE]; // Unicast data digest code
+}P2PAuthToken;
+int ProcessP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token);
+int HandleP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token);
+
 /////////////////////////// written by yaoyao ///////////////////////////////////
 int par_certificate_auth_resp_packet(CertificateAuthRequ *cert_auth_resp_buffer_recv);
 
