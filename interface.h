@@ -534,7 +534,6 @@ typedef struct _P2PCommContext{
 	char peer_randnum[RAND_LEN];
 }P2PCommContext;
 
-// step23
 typedef struct _P2PAuthToken
 {
     BYTE                         flag;                            /* 标识FLAG */
@@ -543,9 +542,26 @@ typedef struct _P2PAuthToken
     BYTE                         randnum[RAND_LEN];
     unsigned char 				 digest[SHA256_DIGEST_SIZE]; // Unicast data digest code
 }P2PAuthToken;
+
+// step23a/23b: IPC - NVR / NVR - IPC
 int ProcessP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token);
+// step24: IPC/NVR
 int HandleP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token);
 
+// step25a/25b: IPC - NVR / NVR - IPC
+int ProcessP2PReauthToken(P2PCommContext *cc, P2PAuthToken *p2p_reauth_token);
+// step26: IPC/NVR
+int HandleP2PReauthToken(P2PCommContext *cc, P2PAuthToken *p2p_reauth_token);
+
+// step27a/27b: IPC - NVR / NVR - IPC
+int ProcessP2PByeSessionToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_session_token);
+// step28: IPC/NVR
+int HandleP2PByeSessionToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_session_token);
+
+// step29a/29b: IPC - NVR / NVR - IPC
+int ProcessP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token);
+// step30: IPC/NVR
+int HandleP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token);
 /////////////////////////// written by yaoyao ///////////////////////////////////
 int par_certificate_auth_resp_packet(CertificateAuthRequ *cert_auth_resp_buffer_recv);
 
