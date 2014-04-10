@@ -78,9 +78,8 @@ static void disp(void * pbuf,int size)
  * out_len:密文长度
  * */
 //加密函数
-static int  EncryptBuffer(unsigned char * key,unsigned char *iv,unsigned char * in_enc, unsigned char *out_enc,int in_len,int *out_len)
+static int EncryptBuffer(unsigned char * key,unsigned char *iv,unsigned char * in_enc, unsigned char *out_enc,int in_len,int *out_len)
 {
-;
 	int outl;  //第一次使用update加密的数据长度
 	int outl2; //剩余的字段，经过final填充后的长度
 	int inl;
@@ -115,8 +114,7 @@ static int  EncryptBuffer(unsigned char * key,unsigned char *iv,unsigned char * 
 
 	*out_len=outl+outl2;
 	EVP_CIPHER_CTX_cleanup(&ctx);	//清除EVP加密上下文环境
-	printf("加密已完成\n");
-
+	return 0;
 }
 /*
  * key:加密密钥，一般设置位24，不知为啥
@@ -162,7 +160,7 @@ static int DecryptBuffer(unsigned char * key,unsigned char *iv,unsigned char * i
 	}
 	*out_len=outl+outl2;
 	EVP_CIPHER_CTX_cleanup(&ctx);//清除EVP加密上下文环境
-	printf("解密已完成\n");
+	return 0;
 }
 
 
@@ -1728,7 +1726,7 @@ int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unica
 	}else{
 		printf("neither IPC nor NVR nor Client!!\n");
 	}
-	printf("[wait for sm1] rtp rtcp info is not encrypted !\n");
+	//printf("[wait for sm1] rtp rtcp info is not encrypted !\n");
 
 	// fill digest
 	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
@@ -1818,7 +1816,7 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 	 */
 	// Dec(CK, RTP_send || RTCP_send || RTP_receive || RTCP_receive)
 	rc->peer_ports = unicast_key_nego_resp_packet->myports;
-	printf("[wait for sm1] rtp rtcp info is not decrypted !\n");
+	//printf("[wait for sm1] rtp rtcp info is not decrypted !\n");
 
 	// get asue rand number
 	memcpy(rc->peer_randnum_next, (BYTE *)&unicast_key_nego_resp_packet->asuechallenge, sizeof(rc->self_randnum_next));
@@ -2017,6 +2015,13 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 	 * for NVR: IK_IPC_NVR || IPC_IP || IPC_rtp_send || IPC_rtcp_send
 	 * for Client(?): IK_NVR_Client || NVR_IP || NVR_rtp_send || NVR_rtcp_send
 	 */
+	unsigned char key[24];
+	unsigned char iv[8];
+	unsigned char ciphertext[CIPHER_TEXT_LEN];
+	int ciphertext_len = CIPHER_TEXT_LEN;
+	memset(key, 0, 24);
+	memset(iv, 0, 8);
+
 	if(lc->peer_type == IPC){
 		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
 		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, CK_IPC_NVR, KEY_LEN);
@@ -2027,11 +2032,8 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 			printf("No such key ring!\n");
 			return FALSE;
 		}
-		unsigned char iv[EVP_MAX_KEY_LENGTH];
-		unsigned char ciphertext[CIPHER_TEXT_LEN];
-		int ciphertext_len = CIPHER_TEXT_LEN;
-		memset(iv, 0, EVP_MAX_KEY_LENGTH);
-		EncryptBuffer(Keybox.keyrings[i].CK,iv,p2p_key_dist_packet->secure_link_info,
+		memcpy(key, Keybox.keyrings[i].CK, KEY_LEN);
+		EncryptBuffer(key,iv,p2p_key_dist_packet->secure_link_info,
 				ciphertext,CIPHER_TEXT_LEN,&ciphertext_len);
 		memcpy(p2p_key_dist_packet->secure_link_info, ciphertext, CIPHER_TEXT_LEN);
 	}else if(lc->peer_type == NVR){
@@ -2043,11 +2045,8 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 			printf("No such key ring!\n");
 			return FALSE;
 		}
-		unsigned char iv[EVP_MAX_KEY_LENGTH];
-		unsigned char ciphertext[CIPHER_TEXT_LEN];
-		int ciphertext_len = CIPHER_TEXT_LEN;
-		memset(iv, 0, EVP_MAX_KEY_LENGTH);
-		EncryptBuffer(Keybox.keyrings[i].CK,iv,p2p_key_dist_packet->secure_link_info,
+		memcpy(key, Keybox.keyrings[i].CK, KEY_LEN);
+		EncryptBuffer(key,iv,p2p_key_dist_packet->secure_link_info,
 				ciphertext,CIPHER_TEXT_LEN,&ciphertext_len);
 		memcpy(p2p_key_dist_packet->secure_link_info, ciphertext, CIPHER_TEXT_LEN);
 	}else{
@@ -2109,15 +2108,18 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
 	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_IP || NVR_rtp_receive || NVR_rtcp_receive
 	 * for NVR: IK_IPC_NVR || IPC_IP || IPC_rtp_send || IPC_rtcp_send
 	 */
+	unsigned char key[24];
+	unsigned char iv[8];
+	unsigned char plaintext[CIPHER_TEXT_LEN];
+	int plaintext_len = CIPHER_TEXT_LEN;
+	memset(key, 0, 24);
+	memset(iv, 0, 8);
 	if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
 		printf("No such key ring!\n");
 		return FALSE;
 	}
-	unsigned char iv[EVP_MAX_KEY_LENGTH];
-	unsigned char plaintext[CIPHER_TEXT_LEN];
-	int plaintext_len = CIPHER_TEXT_LEN;
-	memset(iv, 0, EVP_MAX_KEY_LENGTH);
-	DecryptBuffer(Keybox.keyrings[i].CK,iv,p2p_key_dist_packet->secure_link_info,
+	memcpy(key, Keybox.keyrings[i].CK, KEY_LEN);
+	DecryptBuffer(key,iv,p2p_key_dist_packet->secure_link_info,
 			plaintext,CIPHER_TEXT_LEN,&plaintext_len);
 	memcpy(p2p_key_dist_packet->secure_link_info, plaintext, CIPHER_TEXT_LEN);
 	if( (i=getSecureLinkNum(&Securelinks, lc->target_id)) < 0 ){
