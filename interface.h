@@ -43,7 +43,7 @@
 #define RAND_LEN                 32          /* 随机数长度 */
 #define SHA256_DIGEST_SIZE       32
 #define KEY_LEN                  16
-#define CIPHER_TEXT_LEN			 64
+#define CIPHER_TEXT_LEN			 128
 
 #define MAX_COMM_DATA_LEN        65535       /* 通用数据的最大长度 */
 #define MAX_X509_DATA_LEN        1024 * 4    /* 存放X509DER编解码缓冲的最大长度 */
@@ -469,6 +469,7 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
 #define MAXLINKS 10
 typedef struct SLink{
 	char partner_id[MAXIDSTRING];
+	char partner_ip[MAXIDSTRING];
 	unsigned char IK[KEY_LEN];
 	unsigned char IK_ID[SHA256_DIGEST_SIZE];
 	unsigned char reauth_IK[SHA256_DIGEST_SIZE];
@@ -491,14 +492,16 @@ typedef struct P2PLinkContext{
 	char peer_id[MAXIDSTRING];
 	enum DeviceType peer_type;
 	MACaddr peer_MACaddr;
+	char peer_ip[MAXIDSTRING];
 
 	char target_id[MAXIDSTRING];
 	enum DeviceType target_type;
 	MACaddr target_MACaddr;
+	char target_ip[MAXIDSTRING];
 	Ports target_ports; // SIP Server should give this data
 
-	unsigned char IK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
-	unsigned char CK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
+	//unsigned char IK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
+	//unsigned char CK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
 }P2PLinkContext;
 
 // step21
@@ -563,6 +566,7 @@ int ProcessP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token)
 // step30: IPC/NVR
 int HandleP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token);
 /////////////////////////// written by yaoyao ///////////////////////////////////
+
 int par_certificate_auth_resp_packet(CertificateAuthRequ *cert_auth_resp_buffer_recv);
 
 

@@ -62,6 +62,110 @@ static int getSecureLinkNum(const SecureLinks *securelinks, const char *id)
 	return -1;
 }
 
+static void disp(void * pbuf,int size)
+{ int i=0;
+	for( i=0;i<size;i++)
+		printf("%02x ",*((unsigned char *)pbuf+i));
+	putchar('\n');
+}
+
+/*
+ * key:加密密钥，一般设置位24，不知为啥
+ * iv:加密初始向量
+ * in_enc:明文数组，输入数组
+ * out_enc:加密后的数组，输出密文数组
+ * in_len:明文长度
+ * out_len:密文长度
+ * */
+//加密函数
+static int  EncryptBuffer(unsigned char * key,unsigned char *iv,unsigned char * in_enc, unsigned char *out_enc,int in_len,int *out_len)
+{
+;
+	int outl;  //第一次使用update加密的数据长度
+	int outl2; //剩余的字段，经过final填充后的长度
+	int inl;
+	int rv;
+
+	EVP_CIPHER_CTX ctx;
+
+	EVP_CIPHER_CTX_init(&ctx);	//初始化ctx
+
+	rv = EVP_EncryptInit_ex(&ctx,EVP_des_ede3_ecb(),NULL,key,iv);	//设置密码算法、key和iv
+	if(rv != 1)
+	{
+		printf("Err\n");
+		return -1;
+	}
+
+	inl=in_len;
+	 rv = EVP_EncryptUpdate(&ctx,out_enc,&outl,in_enc,in_len);//加密
+	if(rv != 1)
+	{
+		printf("Err\n");
+		return -1;
+	}
+
+	//加密结束
+	rv = EVP_EncryptFinal_ex(&ctx,out_enc+outl,&outl2);
+	if(rv != 1)
+	{
+		EVP_CIPHER_CTX_cleanup(&ctx);
+		return -1;
+	}
+
+	*out_len=outl+outl2;
+	EVP_CIPHER_CTX_cleanup(&ctx);	//清除EVP加密上下文环境
+	printf("加密已完成\n");
+
+}
+/*
+ * key:加密密钥，一般设置位24，不知为啥
+ * iv:加密初始向量
+ * in_dec:密文数组，输入数组
+ * out_dec:解密后的数组，输出数组
+ * in_len:密文长度
+ * out_len:明文长度
+ * */
+//解密函数
+static int DecryptBuffer(unsigned char * key,unsigned char *iv,unsigned char * in_dec, unsigned char *out_dec,int in_len,int *out_len)
+{
+	int outl;  //第一次使用update解密的数据长度
+	int outl2; //剩余的字段，经过final解密并去除填充后的长度
+	int rv;
+
+	EVP_CIPHER_CTX ctx;
+	//初始化ctx
+	EVP_CIPHER_CTX_init(&ctx);
+	//设置解密的算法、key和iv
+	rv = EVP_DecryptInit_ex(&ctx,EVP_des_ede3_ecb(),NULL,key,iv);
+	if(rv != 1)
+	{
+		EVP_CIPHER_CTX_cleanup(&ctx);
+		return -1;
+	}
+
+	//循环读取原文，解密后后保存到明文文件。
+	rv = EVP_DecryptUpdate(&ctx,out_dec,&outl,in_dec,in_len);//解密
+	if(rv != 1)
+	{
+		EVP_CIPHER_CTX_cleanup(&ctx);
+		return -1;
+	}
+
+	//解密结束
+	rv = EVP_DecryptFinal_ex(&ctx,out_dec+outl,&outl2);
+
+	 if(rv != 1)
+	{
+		EVP_CIPHER_CTX_cleanup(&ctx);
+		return -1;
+	}
+	*out_len=outl+outl2;
+	EVP_CIPHER_CTX_cleanup(&ctx);//清除EVP加密上下文环境
+	printf("解密已完成\n");
+}
+
+
 BOOL getCertData(char *userID, BYTE buf[], int *len)
 {
 	FILE *fp;
@@ -1909,21 +2013,46 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 
 	// fill secure link info
 	/*
-	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_rtp_receive || NVR_rtcp_receive
-	 * for NVR: IK_IPC_NVR || IPC_rtp_send || IPC_rtcp_send
-	 * for Client(?): IK_NVR_Client || NVR_rtp_send || NVR_rtcp_send
+	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_IP || NVR_rtp_receive || NVR_rtcp_receive
+	 * for NVR: IK_IPC_NVR || IPC_IP || IPC_rtp_send || IPC_rtcp_send
+	 * for Client(?): IK_NVR_Client || NVR_IP || NVR_rtp_send || NVR_rtcp_send
 	 */
 	if(lc->peer_type == IPC){
 		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
 		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, CK_IPC_NVR, KEY_LEN);
-		memcpy(p2p_key_dist_packet->secure_link_info+2*KEY_LEN, &lc->target_ports, sizeof(lc->target_ports));
+		memcpy(p2p_key_dist_packet->secure_link_info+2*KEY_LEN, &lc->target_ip, sizeof(lc->target_ip));
+		memcpy(p2p_key_dist_packet->secure_link_info+2*KEY_LEN+MAXIDSTRING, &lc->target_ports, sizeof(lc->target_ports));
+
+		if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+			printf("No such key ring!\n");
+			return FALSE;
+		}
+		unsigned char iv[EVP_MAX_KEY_LENGTH];
+		unsigned char ciphertext[CIPHER_TEXT_LEN];
+		int ciphertext_len = CIPHER_TEXT_LEN;
+		memset(iv, 0, EVP_MAX_KEY_LENGTH);
+		EncryptBuffer(Keybox.keyrings[i].CK,iv,p2p_key_dist_packet->secure_link_info,
+				ciphertext,CIPHER_TEXT_LEN,&ciphertext_len);
+		memcpy(p2p_key_dist_packet->secure_link_info, ciphertext, CIPHER_TEXT_LEN);
 	}else if(lc->peer_type == NVR){
 		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
-		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, &lc->target_ports, sizeof(lc->target_ports));
+		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, &lc->target_ip, sizeof(lc->target_ip));
+		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN+MAXIDSTRING, &lc->target_ports, sizeof(lc->target_ports));
+
+		if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+			printf("No such key ring!\n");
+			return FALSE;
+		}
+		unsigned char iv[EVP_MAX_KEY_LENGTH];
+		unsigned char ciphertext[CIPHER_TEXT_LEN];
+		int ciphertext_len = CIPHER_TEXT_LEN;
+		memset(iv, 0, EVP_MAX_KEY_LENGTH);
+		EncryptBuffer(Keybox.keyrings[i].CK,iv,p2p_key_dist_packet->secure_link_info,
+				ciphertext,CIPHER_TEXT_LEN,&ciphertext_len);
+		memcpy(p2p_key_dist_packet->secure_link_info, ciphertext, CIPHER_TEXT_LEN);
 	}else{
 		printf("neither IPC nor NVR!!\n");
 	}
-	printf("[wait for sm1] secure link info is not encrypted !\n");
 
 	// fill rand number
 	gen_randnum((BYTE *)p2p_key_dist_packet->randnum, RAND_LEN);
@@ -1977,9 +2106,20 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
 
     // get secure link info
 	/*
-	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_rtp_receive || NVR_rtcp_receive
-	 * for NVR: IK_IPC_NVR || IPC_rtp_send || IPC_rtcp_send
+	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_IP || NVR_rtp_receive || NVR_rtcp_receive
+	 * for NVR: IK_IPC_NVR || IPC_IP || IPC_rtp_send || IPC_rtcp_send
 	 */
+	if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	unsigned char iv[EVP_MAX_KEY_LENGTH];
+	unsigned char plaintext[CIPHER_TEXT_LEN];
+	int plaintext_len = CIPHER_TEXT_LEN;
+	memset(iv, 0, EVP_MAX_KEY_LENGTH);
+	DecryptBuffer(Keybox.keyrings[i].CK,iv,p2p_key_dist_packet->secure_link_info,
+			plaintext,CIPHER_TEXT_LEN,&plaintext_len);
+	memcpy(p2p_key_dist_packet->secure_link_info, plaintext, CIPHER_TEXT_LEN);
 	if( (i=getSecureLinkNum(&Securelinks, lc->target_id)) < 0 ){
 		if(Securelinks.nlinks >= MAXLINKS){
 			printf("Links is full!\n");
@@ -1992,11 +2132,17 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
 	if(Self_type == IPC){
 		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
 		memcpy(Securelinks.links[i].CK, p2p_key_dist_packet->secure_link_info+KEY_LEN, KEY_LEN);
-		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+2*KEY_LEN, sizeof(Ports));
+		memcpy(&Securelinks.links[i].partner_ip, p2p_key_dist_packet->secure_link_info+2*KEY_LEN, MAXIDSTRING);
+		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+2*KEY_LEN+MAXIDSTRING, sizeof(Ports));
+	    // get NVR MAC addr
+	    memcpy(lc->target_MACaddr.macaddr, p2p_key_dist_packet->addid.mac2, MAC_LEN);
 	}else if(Self_type == NVR){
 		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
 		memset(Securelinks.links[i].CK, 0, KEY_LEN);
-		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+KEY_LEN, sizeof(Ports));
+		memcpy(&Securelinks.links[i].partner_ip, p2p_key_dist_packet->secure_link_info+KEY_LEN, MAXIDSTRING);
+		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+KEY_LEN+MAXIDSTRING, sizeof(Ports));
+	    // get IPC MAC addr
+	    memcpy(lc->target_MACaddr.macaddr, p2p_key_dist_packet->addid.mac1, MAC_LEN);
 	}else{
 		printf("Myself is neither IPC nor NVR!!\n");
 	}
