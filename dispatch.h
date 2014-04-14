@@ -41,7 +41,7 @@ extern int invite_type;
 #define INVITE_TYPE_PLAYBACK 	2
 
 //init
-int interface_init();
+//int interface_init();
 
 //uac
 

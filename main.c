@@ -14,20 +14,6 @@
 #include "uas.h"
 #include "dispatch.h"
 
-/*
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <syslog.h>
-
-#include <pthread.h>
-
-#include <osip2/osip_mt.h>
-#include <eXosip2/eXosip.h>
-*/
-
 int main(int argc,char *argv[])
 {
 		sessionId inviteId;
@@ -58,9 +44,6 @@ int main(int argc,char *argv[])
 		printf("c: exit\n");
 
 		char command;
-		//printf ("please input the comand:\n");
-		//scanf ("%c", &command);
-		//getchar ();
 		while(1)
 		{
 			printf ("please input the comand:\n");
@@ -68,7 +51,6 @@ int main(int argc,char *argv[])
 			if(command=='\n')
 				continue;
 			getchar ();
-			//printf("+%c+\n",command);
 			switch (command)
 			{
 				case '1':

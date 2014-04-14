@@ -23,7 +23,7 @@
 #include "dispatch.h"
 #include "interface.h"
 #include "sip_com.h"
-
+/*
 int interface_init()
 {
 	user_type=0;
@@ -39,10 +39,10 @@ int interface_init()
 	uas_start_transport=uas_send_Playmedia;
 	uas_handle_Message=uas_handle_rtsp;
 	uas_stop_transport=uas_close_Playmedia;
-	*/
+	/
 	//uas_get_info=uas_get_message;
 	return 1;
-}
+}*/
 
 int uac_get_sdp(char *sdp_data)
 {
@@ -192,44 +192,6 @@ int uas_close_media()
 
 
 //begin register interface
-
-int handle_401_Unauthorized_data(void *data)
-{
-	//printf("handle_401_Unauthorized_data:%s\n",data);
-
-	//struct  RegisterContext * registerCon;
-
-	//RegisterCon->radius_id=device_info.radius_id;
-	//RegisterCon->peer_id=device_info.server_id;
-	//RegisterCon->peer_ip=device_info.server_ip;
-	//RegisterCon->self_id=device_info.ipc_id;
-	//RegisterCon->self_password=device_info.ipc_pwd;
-	//registerCon->self_type=;
-
-	printf("registerCon->self_id:%s",RegisterCon->self_id);
-	//struct  auth_active auth_active_packet;
-
-	if(!HandleWAPIProtocolAuthActive(RegisterCon,(AuthActive *)data));
-	{
-		return 1;
-	}
-
-	return 0;}
-
-int get_register2_data(char *data,char * in_data)
-{
-	//memcpy(data,"+register2_data+", 17);
-	//printf("get_register2_data:%s\n",data);
-
-	//AccessAuthRequ *data2=(char*)malloc(sizeof(AccessAuthRequ)*2);
-	if(!ProcessWAPIProtocolAccessAuthRequest(RegisterCon,(AuthActive *)in_data,(AccessAuthRequ *)(data)))
-	{
-		printf("ProcessWAPIProtocolAccessAuthRequest error\n");
-		return 0;
-	}
-
-	printf("ProcessWAPIProtocolAccessAuthRequest success\n");
-	return 1;}
 
 int handle_response_data(void *data,void * in_data)
 {

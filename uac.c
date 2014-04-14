@@ -19,11 +19,17 @@
 #include "uac.h"
 #include "time.h"
 
-
 int uac_init()
 {
-	interface_init();
-			csenn_eXosip_launch();
+	user_type=0;
+	call_type=0;
+
+	invite_user_type=0;
+	invite_type=0;
+
+	init_Contextconf(device_info.cfgFile);		//对注册上下文结构的初始化，在opensips中它同样存在
+
+	csenn_eXosip_launch();
 			static  char eXosip_server_id[CHARLEN];//           = "34020000001180000002";
 			static  char eXosip_server_ip[CHARLEN];//           = "192.168.17.127";//"123456";//
 			static  char eXosip_server_port[CHARLEN];//         = "5060";
@@ -35,25 +41,15 @@ int uac_init()
 			static  char radius_id[CHARLEN];//            = "5060";
 			//static  char sipserver_id[50];//            = "5060";
 
-			get_conf_value("radius_id",radius_id,device_info.cfgFile);
+			get_conf_value( "radius_id" , radius_id , device_info.cfgFile);
 
-			get_conf_value("server_id",eXosip_server_id,device_info.cfgFile);
-			//printf("eXosip_server_id:%s\n",eXosip_server_id);
-			get_conf_value("server_ip",eXosip_server_ip,device_info.cfgFile);
-			//printf("eXosip_server_ip:%s\n",eXosip_server_ip);
-			get_conf_value("server_port",eXosip_server_port,device_info.cfgFile);
-			//printf("eXosip_server_port:%s\n",eXosip_server_port);
-
-			get_conf_value("self_id",eXosip_ipc_id,device_info.cfgFile);
-			//printf("eXosip_ipc_id:%s\n",eXosip_ipc_id);
-			get_conf_value("self_password",eXosip_ipc_pwd,device_info.cfgFile);
-			//printf("eXosip_ipc_pwd:%s\n",eXosip_ipc_pwd);
-			//get_conf_value("self_ip",eXosip_ipc_ip,device_info.cfgFile);
-			//getlocalip(eXosip_ipc_ip);
-			getNetInfo(eXosip_ipc_ip,NULL);
-			//printf("eXosip_ipc_ip:%s\n",eXosip_ipc_ip);
-			get_conf_value("self_port",eXosip_ipc_port,device_info.cfgFile);
-			//printf("eXosip_ipc_port:%s\n",eXosip_ipc_port);
+			get_conf_value( "server_id" , eXosip_server_id , device_info.cfgFile);
+			get_conf_value( "server_ip" , eXosip_server_ip , device_info.cfgFile);
+			get_conf_value( "server_port" , eXosip_server_port , device_info.cfgFile);
+			get_conf_value( "self_id" , eXosip_ipc_id , device_info.cfgFile);
+			get_conf_value( "self_password" , eXosip_ipc_pwd , device_info.cfgFile);
+			getNetInfo( eXosip_ipc_ip , NULL );
+			get_conf_value( "self_port" , eXosip_ipc_port , device_info.cfgFile);
 
 			char user_type_temp[CHARLEN];
 			get_conf_value("self_type",user_type_temp,device_info.cfgFile);
@@ -72,7 +68,6 @@ int uac_init()
 			}
 
 			device_info.server_id           = eXosip_server_id;
-			//getlocalip(eXosip_ipc_ip);
 			device_info.server_ip           = eXosip_server_ip;
 			device_info.server_port         = eXosip_server_port;
 			device_info.ipc_id              = eXosip_ipc_id;
@@ -82,7 +77,7 @@ int uac_init()
 			device_info.radius_id           = radius_id;
 
 
-			auth_request_packet_data=NULL;
+			//auth_request_packet_data=NULL;
 
 			//csenn_eXosip_callback.csenn_eXosip_getDeviceInfo(&device_info);
 			while (csenn_eXosip_init());
@@ -91,10 +86,10 @@ int uac_init()
 
 int uac_register()
 {
-		int expires=3600;
-		int ret = 0;
-		eXosip_event_t *je  = NULL;
-		osip_message_t *reg = NULL;
+		int expires=3600;		/* 注册存活时间 */
+		int ret = 0;			/* 注册返回值 */
+		eXosip_event_t *je  = NULL;	/* 监听到的消息指针 */
+		osip_message_t *reg = NULL;	/* 注册的消息体指针 */
 		char from[100];/*sip:主叫用户名@被叫IP地址*/
 		char proxy[100];/*sip:被叫IP地址:被叫IP端口*/
 
@@ -103,7 +98,7 @@ int uac_register()
 		sprintf(from, "sip:%s@%s", device_info.ipc_id, device_info.server_ip);
 		sprintf(proxy, "sip:%s:%s", device_info.server_ip, device_info.server_port);
 
-	/*发送不带认证信息的注册请求*/
+	/*------step 1-----------发送不带认证信息的注册请求-----------------------*/
 	retry:
 		eXosip_lock();
 		g_register_id = eXosip_register_build_initial_register(from, proxy, NULL, expires, &reg);
@@ -146,10 +141,10 @@ int uac_register()
 			{
 				printf("<EXOSIP_REGISTRATION_FAILURE>\r\n");
 				printf("je->rid=%d\r\n", je->rid);
-				/*收到服务器返回的注册失败/401未认证状态*/
+				/*-------step 2---------收到服务器返回的注册失败/401未认证状态------------*/
 				if ((NULL != je->response)&&(401 == je->response->status_code))
 				{
-					char * auth_active_packet_data=NULL;
+					AuthActive * auth_active_packet_data=NULL;
 					osip_body_t *body;
 
 					osip_header_t * subject;
@@ -168,19 +163,12 @@ int uac_register()
 						memcpy(mac,subject->hvalue+4,12);
 						decodeFromChar(mac,12);
 						memcpy(RegisterCon->peer_MACaddr.macaddr,mac,6);
-						//printf("peer_MACaddr:%02x %02x %02x %02x %02x %02x",RegisterCon->peer_MACaddr.macaddr[0],
-								//RegisterCon->peer_MACaddr.macaddr[1],
-								//RegisterCon->peer_MACaddr.macaddr[2],
-								//RegisterCon->peer_MACaddr.macaddr[3],
-								//RegisterCon->peer_MACaddr.macaddr[4],
-								//RegisterCon->peer_MACaddr.macaddr[5]);
 					}
 					else
 					{
 						printf("subject not match\n");
 						return 0;
 					}
-
 
 					osip_message_get_body (je->response, 0, &body);
 					printf("body->length:%d\n",body->length);
@@ -189,29 +177,34 @@ int uac_register()
 						free(auth_active_packet_data);
 						auth_active_packet_data=NULL;
 					}
-					auth_active_packet_data=(char *)malloc (body->length*sizeof(char));
-
-					memcpy(auth_active_packet_data,body->body, body->length);
-					decodeFromChar(auth_active_packet_data,body->length);
-					if(!handle_401_Unauthorized_data(auth_active_packet_data))
+					if((sizeof(AuthActive)*2)>(body->length))
 					{
-						printf("handle_401_Unauthorized_data error\n");
+						printf("body->length is not enough");
+						return 0;
+					}
+					auth_active_packet_data=(AuthActive *)malloc (body->length*sizeof(char));
+					memcpy(auth_active_packet_data,body->body, body->length);
+					decodeFromChar((char*)auth_active_packet_data,body->length);
+					if(!HandleWAPIProtocolAuthActive(RegisterCon,auth_active_packet_data))
+					{
+						printf("HandleWAPIProtocolAuthActive error\n");
 						return 0;
 					}
 
-
+					/*
 					//printf("message:%s\n",message);
-					if(0/*when receive 401Unauthorized package，send ACK and Regester*/)
-						{
-							osip_message_t *ack = NULL;
-							int call_id=atoi(reg->call_id->number);
-							printf("je->did:%d\n",je->did);
-							ret=eXosip_call_build_ack(je->rid,&ack);
-							ret=eXosip_call_send_ack(atoi(je->rid),ack);
-						}
+					if(0/*when receive 401Unauthorized package，send ACK and Regester/)
+					{
+						osip_message_t *ack = NULL;
+						int call_id=atoi(reg->call_id->number);
+						printf("je->did:%d\n",je->did);
+						ret=eXosip_call_build_ack(je->rid,&ack);
+						ret=eXosip_call_send_ack(atoi(je->rid),ack);
+					}
+					*/
 
 					reg = NULL;
-					/*发送携带认证信息的注册请求*/
+					/*----------step 3-------------发送携带认证信息的注册请求----------------------*/
 					eXosip_lock();
 					eXosip_clear_authentication_info();/*清除认证信息*/
 					eXosip_add_authentication_info(device_info.ipc_id, device_info.ipc_id, device_info.ipc_pwd, "MD5", NULL);/*添加主叫用户的认证信息*/
@@ -228,27 +221,21 @@ int uac_register()
 
 					memset(auth_request_packet_data,0, sizeof(AccessAuthRequ)*2);
 
-					if(!get_register2_data(auth_request_packet_data,auth_active_packet_data))
+					if(!ProcessWAPIProtocolAccessAuthRequest(RegisterCon,auth_active_packet_data,auth_request_packet_data))
 					{
-						printf("get_register2_data error\n");
+						printf("ProcessWAPIProtocolAccessAuthRequest error\n");
 						return 0;
 					}
-					//printf("enter2\n");
-					codeToChar(auth_request_packet_data,sizeof(AccessAuthRequ)*2);
-					//printf("%s",auth_request_packet_data);
+					codeToChar((char*)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
 
-					//char *d=(char *)malloc(sizeof(char)*600);printf("enter11\n");
-					//memset(d,0,600);printf("enter2\n");
 					printf("length:%d",(sizeof(AuthActive)*2));
 					printf("length:%d",(sizeof(AccessAuthRequ)*2));
 					printf("length:%d",(sizeof(CertificateAuthRequ)*2));
 					printf("length:%d",sizeof(CertificateAuthResp)*2);
 					printf("length:%d",sizeof(AccessAuthResp)*2);
-					//printf("auth_request_packet_data:%s",auth_request_packet_data);
-					osip_message_set_body(reg,auth_request_packet_data,sizeof(AccessAuthRequ)*2);
-					decodeFromChar(auth_request_packet_data,sizeof(AccessAuthRequ)*2);
-					//osip_message_set_body(reg,auth_request_packet_data,DATA_LEN);
-					//free(tmp);
+
+					osip_message_set_body(reg,(char*)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
+					decodeFromChar((char *)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
 
 					ret = eXosip_register_send_register(je->rid, reg);
 					eXosip_unlock();
@@ -268,19 +255,20 @@ int uac_register()
 			}
 			else if (EXOSIP_REGISTRATION_SUCCESS == je->type)
 			{
-				/*收到服务器返回的注册成功*/
+				/*---------step 6-------------收到服务器返回的注册成功--------------------------------*/
 				printf("<EXOSIP_REGISTRATION_SUCCESS>\r\n");
 				g_register_id = je->rid;/*保存注册成功的注册ID*/
 				printf("g_register_id=%d\r\n", g_register_id);
-				char * message;
+				AccessAuthResp * access_auth_resp_data;
 				osip_body_t *body;
 				osip_message_get_body (je->response, 0, &body);
-				message=(char *)malloc (body->length*sizeof(char));
-				memcpy(message,body->body, body->length);
-				//printf("%s",message);
-				if(!handle_response_data(message,auth_request_packet_data))
+				access_auth_resp_data=(AccessAuthResp *)malloc (body->length*sizeof(char));
+				memcpy(access_auth_resp_data,body->body, body->length);
+				decodeFromChar((char*)access_auth_resp_data,sizeof(AccessAuthResp)*2);
+
+				if(!HandleWAPIProtocolAccessAuthResp(RegisterCon,auth_request_packet_data,access_auth_resp_data))
 				{
-					printf("handle_response_data error\n");
+					printf("HandleWAPIProtocolAccessAuthResp error\n");
 					return 0;
 				}
 
@@ -432,7 +420,7 @@ int uac_key_nego()
 	snprintf(from, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
 	//uac_send_noSessionMessage(to,from, NULL,"this is no KEY_NAGO1 message","KEY_NAGO1\n");
 	sessionId id;
-	uac_sendInvite(&id,device_info.server_ip,"this is no KEY_NAGO1 message","text/code","KEY_NAGO1\n");
+	uac_sendInvite(&id,to,"this is no KEY_NAGO1 message","text/code","KEY_NAGO1\n");
 	//printf("uac_sendInvite sucess\n");
 	uac_waitfor(EXOSIP_CALL_ANSWERED,&g_event,id);
 	if(g_event==NULL)
@@ -537,11 +525,15 @@ int uac_key_distribute()
 	char from[100];
 
 	//key_nego 1
-	snprintf(to, 50,"sip:%s@%s:%s",device_info.server_id,device_info.server_ip,device_info.server_port);
+	//snprintf(to, 50,"sip:%s@%s:%s",device_info.server_id,device_info.server_ip,device_info.server_port);
+	char peer_id[CHARLEN]="user2";
+	snprintf(to, 50,"sip:%s@%s:%s",peer_id,device_info.server_ip,device_info.server_port);
 	snprintf(from, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
-	//uac_send_noSessionMessage(to,from, NULL,"this is no KEY_NAGO1 message","KEY_NAGO1\n");
+	//uac_send_noSessionMessage(to,from, NULL,"peer userid:user2\n","KEY_DISTRIBUTE1\n");
+
 	sessionId id;
-	uac_sendInvite(&id,device_info.server_ip,"peer userid:11111\n","text/code","KEY_DISTRIBUTE1\n");
+	uac_sendInvite(&id,to,"peer userid:user2\n","text/code","KEY_DISTRIBUTE1\n");
+
 	//printf("uac_sendInvite sucess\n");
 	uac_waitfor(EXOSIP_CALL_ANSWERED,&g_event,id);
 	if(g_event==NULL)
@@ -644,22 +636,21 @@ int uac_sendInvite(sessionId * id, char * to, char * message, char *meessageType
 {
 	osip_message_t *invite;
 	int i;// optionnal route header
-	char to_[100];
-	snprintf (to_, 100,"sip:%s@%s", device_info.server_id,to);
+	//char to_[100];
+	//snprintf (to_, 100,"sip:%s@%s", device_info.server_id,to);
 	char from_[100];
 	snprintf (from_, 100,"sip:%s@%s:%s",device_info.ipc_id, device_info.ipc_ip ,device_info.ipc_port );
 
-	i = eXosip_call_build_initial_invite (&invite,to_,from_,NULL,subject );
+	i = eXosip_call_build_initial_invite (&invite,to,from_,NULL,subject );
 	if (i != 0)
 	{
 	return -1;
 	}
 	//osip_message_set_supported (invite, "100rel");
 	{
-	char tmp[4096];
 	char localip[128];
 	eXosip_guess_localip (AF_INET, localip, 128);
-	localip[128]=device_info.ipc_ip;
+	localip[128]=device_info.ipc_ip;//需要修改
 
 	i=osip_message_set_body (invite, message, strlen (message));
 	i=osip_message_set_content_type (invite, meessageType);
@@ -682,7 +673,6 @@ int uac_sendInvite(sessionId * id, char * to, char * message, char *meessageType
 
 int init_conf(char * file)
 {
-
 	int fd=open(file,O_RDONLY);
 	    if(fd>2){   //确保文件存在
 	    	static  char * cfgFile ;
