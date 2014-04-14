@@ -43,7 +43,7 @@
 #define RAND_LEN                 32          /* 随机数长度 */
 #define SHA256_DIGEST_SIZE       32
 #define KEY_LEN                  16
-#define CIPHER_TEXT_LEN			 64
+#define CIPHER_TEXT_LEN			 128
 
 #define MAX_COMM_DATA_LEN        65535       /* 通用数据的最大长度 */
 #define MAX_X509_DATA_LEN        1024 * 4    /* 存放X509DER编解码缓冲的最大长度 */
@@ -469,8 +469,11 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
 #define MAXLINKS 10
 typedef struct SLink{
 	char partner_id[MAXIDSTRING];
+	char partner_ip[MAXIDSTRING];
 	unsigned char IK[KEY_LEN];
 	unsigned char IK_ID[SHA256_DIGEST_SIZE];
+	unsigned char reauth_IK[SHA256_DIGEST_SIZE];
+	unsigned char reauth_IK_ID[SHA256_DIGEST_SIZE];
 	unsigned char CK[KEY_LEN];
 	unsigned char CK_ID[SHA256_DIGEST_SIZE];
 	Ports ports;
@@ -489,14 +492,16 @@ typedef struct P2PLinkContext{
 	char peer_id[MAXIDSTRING];
 	enum DeviceType peer_type;
 	MACaddr peer_MACaddr;
+	char peer_ip[MAXIDSTRING];
 
 	char target_id[MAXIDSTRING];
 	enum DeviceType target_type;
 	MACaddr target_MACaddr;
+	char target_ip[MAXIDSTRING];
 	Ports target_ports; // SIP Server should give this data
 
-	unsigned char IK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
-	unsigned char CK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
+	//unsigned char IK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
+	//unsigned char CK_P2P_ID[SHA256_DIGEST_SIZE]; // SIP Server should give this data
 }P2PLinkContext;
 
 // step21
@@ -521,7 +526,47 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
  * IPC communicate to NVR process
  * (step 23-30)
  */
+typedef struct _P2PCommContext{
+	char self_id[MAXIDSTRING];
+	MACaddr self_MACaddr;
+	char self_randnum[RAND_LEN];
+
+	char peer_id[MAXIDSTRING];
+	enum DeviceType peer_type;
+	MACaddr peer_MACaddr;
+	char peer_randnum[RAND_LEN];
+}P2PCommContext;
+
+typedef struct _P2PAuthToken
+{
+    BYTE                         flag;                            /* 标识FLAG */
+	unsigned char                IK_P2P_ID[SHA256_DIGEST_SIZE];
+    addindex                     addid;                             /* 地址索引ADDID */
+    BYTE                         randnum[RAND_LEN];
+    unsigned char 				 digest[SHA256_DIGEST_SIZE]; // Unicast data digest code
+}P2PAuthToken;
+
+// step23a/23b: IPC - NVR / NVR - IPC
+int ProcessP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token);
+// step24: IPC/NVR
+int HandleP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token);
+
+// step25a/25b: IPC - NVR / NVR - IPC
+int ProcessP2PReauthToken(P2PCommContext *cc, P2PAuthToken *p2p_reauth_token);
+// step26: IPC/NVR
+int HandleP2PReauthToken(P2PCommContext *cc, P2PAuthToken *p2p_reauth_token);
+
+// step27a/27b: IPC - NVR / NVR - IPC
+int ProcessP2PByeSessionToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_session_token);
+// step28: IPC/NVR
+int HandleP2PByeSessionToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_session_token);
+
+// step29a/29b: IPC - NVR / NVR - IPC
+int ProcessP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token);
+// step30: IPC/NVR
+int HandleP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token);
 /////////////////////////// written by yaoyao ///////////////////////////////////
+
 int par_certificate_auth_resp_packet(CertificateAuthRequ *cert_auth_resp_buffer_recv);
 
 

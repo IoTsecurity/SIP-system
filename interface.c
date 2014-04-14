@@ -35,7 +35,7 @@ const char *CAID = "0";
 
 static int annotation = 2;  //1-lvshichao,2-yaoyao
 
-const time_t TimeThreshold = 10; // in seconds
+const time_t TimeThreshold = 120; // in seconds
 enum DeviceType Self_type; // =IPC/SIPserver/NVR/Client
 KeyBox Keybox;
 SecureLinks Securelinks;
@@ -51,7 +51,7 @@ static int getKeyRingNum(const KeyBox *keybox, const char *id)
 	return -1;
 }
 
-static int getLinkNum(const SecureLinks *securelinks, const char *id)
+static int getSecureLinkNum(const SecureLinks *securelinks, const char *id)
 {
 	int i;
 	for(i=0; i < securelinks->nlinks; i++){
@@ -61,6 +61,108 @@ static int getLinkNum(const SecureLinks *securelinks, const char *id)
 	}
 	return -1;
 }
+
+static void disp(void * pbuf,int size)
+{ int i=0;
+	for( i=0;i<size;i++)
+		printf("%02x ",*((unsigned char *)pbuf+i));
+	putchar('\n');
+}
+
+/*
+ * key:加密密钥，一般设置位24，不知为啥
+ * iv:加密初始向量
+ * in_enc:明文数组，输入数组
+ * out_enc:加密后的数组，输出密文数组
+ * in_len:明文长度
+ * out_len:密文长度
+ * */
+//加密函数
+static int EncryptBuffer(unsigned char * key,unsigned char *iv,unsigned char * in_enc, unsigned char *out_enc,int in_len,int *out_len)
+{
+	int outl;  //第一次使用update加密的数据长度
+	int outl2; //剩余的字段，经过final填充后的长度
+	int inl;
+	int rv;
+
+	EVP_CIPHER_CTX ctx;
+
+	EVP_CIPHER_CTX_init(&ctx);	//初始化ctx
+
+	rv = EVP_EncryptInit_ex(&ctx,EVP_des_ede3_ecb(),NULL,key,iv);	//设置密码算法、key和iv
+	if(rv != 1)
+	{
+		printf("Err\n");
+		return -1;
+	}
+
+	inl=in_len;
+	 rv = EVP_EncryptUpdate(&ctx,out_enc,&outl,in_enc,in_len);//加密
+	if(rv != 1)
+	{
+		printf("Err\n");
+		return -1;
+	}
+
+	//加密结束
+	rv = EVP_EncryptFinal_ex(&ctx,out_enc+outl,&outl2);
+	if(rv != 1)
+	{
+		EVP_CIPHER_CTX_cleanup(&ctx);
+		return -1;
+	}
+
+	*out_len=outl+outl2;
+	EVP_CIPHER_CTX_cleanup(&ctx);	//清除EVP加密上下文环境
+	return 0;
+}
+/*
+ * key:加密密钥，一般设置位24，不知为啥
+ * iv:加密初始向量
+ * in_dec:密文数组，输入数组
+ * out_dec:解密后的数组，输出数组
+ * in_len:密文长度
+ * out_len:明文长度
+ * */
+//解密函数
+static int DecryptBuffer(unsigned char * key,unsigned char *iv,unsigned char * in_dec, unsigned char *out_dec,int in_len,int *out_len)
+{
+	int outl;  //第一次使用update解密的数据长度
+	int outl2; //剩余的字段，经过final解密并去除填充后的长度
+	int rv;
+
+	EVP_CIPHER_CTX ctx;
+	//初始化ctx
+	EVP_CIPHER_CTX_init(&ctx);
+	//设置解密的算法、key和iv
+	rv = EVP_DecryptInit_ex(&ctx,EVP_des_ede3_ecb(),NULL,key,iv);
+	if(rv != 1)
+	{
+		EVP_CIPHER_CTX_cleanup(&ctx);
+		return -1;
+	}
+
+	//循环读取原文，解密后后保存到明文文件。
+	rv = EVP_DecryptUpdate(&ctx,out_dec,&outl,in_dec,in_len);//解密
+	if(rv != 1)
+	{
+		EVP_CIPHER_CTX_cleanup(&ctx);
+		return -1;
+	}
+
+	//解密结束
+	rv = EVP_DecryptFinal_ex(&ctx,out_dec+outl,&outl2);
+
+	 if(rv != 1)
+	{
+		EVP_CIPHER_CTX_cleanup(&ctx);
+		return -1;
+	}
+	*out_len=outl+outl2;
+	EVP_CIPHER_CTX_cleanup(&ctx);//清除EVP加密上下文环境
+	return 0;
+}
+
 
 BOOL getCertData(char *userID, BYTE buf[], int *len)
 {
@@ -722,7 +824,7 @@ int ProcessWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_p
 	//fill ae rand number
 	if(annotation == 2)
 		printf("fill ae rand number:\n");
-	gen_randnum((BYTE *)&auth_active_packet->aechallenge, sizeof(auth_active_packet->aechallenge));
+	gen_randnum((BYTE *)auth_active_packet->aechallenge, sizeof(auth_active_packet->aechallenge));
 
 	//fill auth active time
 	time(&auth_active_packet->authactivetime);
@@ -888,7 +990,7 @@ int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_a
 
 		//fill asue rand number
 		printf("fill asue rand number:\n");
-		gen_randnum((BYTE *)&access_auth_requ_packet->asuechallenge, sizeof(access_auth_requ_packet->aechallenge));
+		gen_randnum((BYTE *)access_auth_requ_packet->asuechallenge, sizeof(access_auth_requ_packet->aechallenge));
 
 		//fill asue key data
 		printf("fill asue cipher data.\n");
@@ -1252,7 +1354,7 @@ int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
 
 	int i;
 	if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
-		if(i >= MAXKEYRINGS){
+		if(Keybox.nkeys >= MAXKEYRINGS){
 			printf("Key rings is full!\n");
 		}else{
 		strcpy(Keybox.keyrings[Keybox.nkeys].partner_id, rc->peer_id);
@@ -1414,7 +1516,7 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 
 		int i;
 		if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
-			if(i >= MAXKEYRINGS){
+			if(Keybox.nkeys >= MAXKEYRINGS){
 				printf("Key rings is full!\n");
 			}else{
 			strcpy(Keybox.keyrings[Keybox.nkeys].partner_id, rc->peer_id);
@@ -1582,7 +1684,7 @@ int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unica
 			KEY_LEN, output, outputlen);
 
 	if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
-		if(i >= MAXKEYRINGS-1){
+		if(Keybox.nkeys >= MAXKEYRINGS-1){
 			printf("Key rings is full!\n");
 			return FALSE;
 		}else{
@@ -1624,7 +1726,7 @@ int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unica
 	}else{
 		printf("neither IPC nor NVR nor Client!!\n");
 	}
-	printf("[wait for sm1] rtp rtcp info is not encrypted !\n");
+	//printf("[wait for sm1] rtp rtcp info is not encrypted !\n");
 
 	// fill digest
 	if((i=getKeyRingNum(&Keybox, rc->peer_id)) < 0){
@@ -1675,7 +1777,7 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 			KEY_LEN, output, outputlen);
 
 	if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
-		if(i >= MAXKEYRINGS-1){
+		if(Keybox.nkeys >= MAXKEYRINGS-1){
 			printf("Key rings is full!\n");
 			return FALSE;
 		}else{
@@ -1714,7 +1816,7 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 	 */
 	// Dec(CK, RTP_send || RTCP_send || RTP_receive || RTCP_receive)
 	rc->peer_ports = unicast_key_nego_resp_packet->myports;
-	printf("[wait for sm1] rtp rtcp info is not decrypted !\n");
+	//printf("[wait for sm1] rtp rtcp info is not decrypted !\n");
 
 	// get asue rand number
 	memcpy(rc->peer_randnum_next, (BYTE *)&unicast_key_nego_resp_packet->asuechallenge, sizeof(rc->self_randnum_next));
@@ -1788,13 +1890,19 @@ int HandleUnicastKeyNegoConfirm(RegisterContext *rc, const UnicastKeyNegoConfirm
  * IPC access to NVR process
  * (step 21-22)
  */
-// step21: SIP Server - SIP UA(IPC/NVR)
+// step21/22: SIP Server - SIP UA(IPC/NVR)
 int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_dist_packet)
 {
 	printf("In ProcessP2PKeyDistribution:\n");
 
 	// fill flag
-	p2p_key_dist_packet->flag = 21; // step21
+	if(lc->peer_type == IPC){
+		p2p_key_dist_packet->flag = 21; // step21
+	}else if(lc->peer_type == NVR){
+		p2p_key_dist_packet->flag = 22; // step22
+	}else{
+		printf("peer is neither IPC nor NVR!!\n");
+	}
 
 	/* IK_IPC_NVR = SHA256(IK_IPC || IK_NVR)
 	 * CK_IPC_NVR = SHA256(CK_IPC || CK_NVR)
@@ -1853,7 +1961,7 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 		memset(CK_IPC, 0, KEY_LEN);
 		memset(CK_NVR, 0, KEY_LEN);
 	}else{
-		printf("neither IPC nor NVR!!\n");
+		printf("peer is neither IPC nor NVR!!\n");
 	}
 	free(text);
 
@@ -1883,9 +1991,10 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 		memcpy(text+2*MAC_LEN+KEY_LEN, IK_NVR, KEY_LEN);
 		SHA256(text, textlen, output);
 		memcpy(p2p_key_dist_packet->IK_P2P_ID, output, SHA256_DIGEST_SIZE);
+
 		memset(p2p_key_dist_packet->CK_P2P_ID, 0, SHA256_DIGEST_SIZE);
 	}else{
-		printf("neither IPC nor NVR!!\n");
+		printf("peer is neither IPC nor NVR!!\n");
 	}
 	free(text);
 
@@ -1902,24 +2011,50 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 
 	// fill secure link info
 	/*
-	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_rtp_receive || NVR_rtcp_receive
-	 * for NVR: IK_IPC_NVR || IPC_rtp_send || IPC_rtcp_send
-	 * for Client(?): IK_NVR_Client || NVR_rtp_send || NVR_rtcp_send
+	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_IP || NVR_rtp_receive || NVR_rtcp_receive
+	 * for NVR: IK_IPC_NVR || IPC_IP || IPC_rtp_send || IPC_rtcp_send
+	 * for Client(?): IK_NVR_Client || NVR_IP || NVR_rtp_send || NVR_rtcp_send
 	 */
+	unsigned char key[24];
+	unsigned char iv[8];
+	unsigned char ciphertext[CIPHER_TEXT_LEN];
+	int ciphertext_len = CIPHER_TEXT_LEN;
+	memset(key, 0, 24);
+	memset(iv, 0, 8);
+
 	if(lc->peer_type == IPC){
 		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
 		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, CK_IPC_NVR, KEY_LEN);
-		memcpy(p2p_key_dist_packet->secure_link_info+2*KEY_LEN, &lc->target_ports, sizeof(lc->target_ports));
+		memcpy(p2p_key_dist_packet->secure_link_info+2*KEY_LEN, &lc->target_ip, sizeof(lc->target_ip));
+		memcpy(p2p_key_dist_packet->secure_link_info+2*KEY_LEN+MAXIDSTRING, &lc->target_ports, sizeof(lc->target_ports));
+
+		if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+			printf("No such key ring!\n");
+			return FALSE;
+		}
+		memcpy(key, Keybox.keyrings[i].CK, KEY_LEN);
+		EncryptBuffer(key,iv,p2p_key_dist_packet->secure_link_info,
+				ciphertext,CIPHER_TEXT_LEN,&ciphertext_len);
+		memcpy(p2p_key_dist_packet->secure_link_info, ciphertext, CIPHER_TEXT_LEN);
 	}else if(lc->peer_type == NVR){
 		memcpy(p2p_key_dist_packet->secure_link_info, IK_IPC_NVR, KEY_LEN);
-		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, &lc->target_ports, sizeof(lc->target_ports));
+		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN, &lc->target_ip, sizeof(lc->target_ip));
+		memcpy(p2p_key_dist_packet->secure_link_info+KEY_LEN+MAXIDSTRING, &lc->target_ports, sizeof(lc->target_ports));
+
+		if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+			printf("No such key ring!\n");
+			return FALSE;
+		}
+		memcpy(key, Keybox.keyrings[i].CK, KEY_LEN);
+		EncryptBuffer(key,iv,p2p_key_dist_packet->secure_link_info,
+				ciphertext,CIPHER_TEXT_LEN,&ciphertext_len);
+		memcpy(p2p_key_dist_packet->secure_link_info, ciphertext, CIPHER_TEXT_LEN);
 	}else{
 		printf("neither IPC nor NVR!!\n");
 	}
-	printf("[wait for sm1] secure link info is not encrypted !\n");
 
 	// fill rand number
-	gen_randnum((BYTE *)&p2p_key_dist_packet->randnum, RAND_LEN);
+	gen_randnum((BYTE *)p2p_key_dist_packet->randnum, RAND_LEN);
 
 	// fill time
 	time(&p2p_key_dist_packet->timestamp);
@@ -1940,7 +2075,7 @@ int ProcessP2PKeyDistribution(P2PLinkContext *lc, P2PKeyDistribution *p2p_key_di
 	return TRUE;
 }
 
-// step21+: SIP UA(IPC/NVR)
+// step21+/22+: SIP UA(IPC/NVR)
 int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_key_dist_packet)
 {
 	printf("In HandleP2PKeyDistribution:\n");
@@ -1970,34 +2105,54 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
 
     // get secure link info
 	/*
-	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_rtp_receive || NVR_rtcp_receive
-	 * for NVR: IK_IPC_NVR || IPC_rtp_send || IPC_rtcp_send
+	 * for IPC: IK_IPC_NVR || CK_IPC_NVR || NVR_IP || NVR_rtp_receive || NVR_rtcp_receive
+	 * for NVR: IK_IPC_NVR || IPC_IP || IPC_rtp_send || IPC_rtcp_send
 	 */
-	if( (i=getLinkNum(&Securelinks, lc->target_id)) < 0 ){
-		if(i >= MAXLINKS){
+	unsigned char key[24];
+	unsigned char iv[8];
+	unsigned char plaintext[CIPHER_TEXT_LEN];
+	int plaintext_len = CIPHER_TEXT_LEN;
+	memset(key, 0, 24);
+	memset(iv, 0, 8);
+	if((i=getKeyRingNum(&Keybox, lc->peer_id)) < 0){
+		printf("No such key ring!\n");
+		return FALSE;
+	}
+	memcpy(key, Keybox.keyrings[i].CK, KEY_LEN);
+	DecryptBuffer(key,iv,p2p_key_dist_packet->secure_link_info,
+			plaintext,CIPHER_TEXT_LEN,&plaintext_len);
+	memcpy(p2p_key_dist_packet->secure_link_info, plaintext, CIPHER_TEXT_LEN);
+	if( (i=getSecureLinkNum(&Securelinks, lc->target_id)) < 0 ){
+		if(Securelinks.nlinks >= MAXLINKS){
 			printf("Links is full!\n");
 		}else{
-		strcpy(Securelinks.links[Securelinks.nlinks].partner_id, lc->target_id);
-		i = Securelinks.nlinks;
-		Securelinks.nlinks++;
+			strcpy(Securelinks.links[Securelinks.nlinks].partner_id, lc->target_id);
+			i = Securelinks.nlinks;
+			Securelinks.nlinks++;
 		}
 	}
 	if(Self_type == IPC){
 		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
 		memcpy(Securelinks.links[i].CK, p2p_key_dist_packet->secure_link_info+KEY_LEN, KEY_LEN);
-		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+2*KEY_LEN, sizeof(Ports));
+		memcpy(&Securelinks.links[i].partner_ip, p2p_key_dist_packet->secure_link_info+2*KEY_LEN, MAXIDSTRING);
+		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+2*KEY_LEN+MAXIDSTRING, sizeof(Ports));
+	    // get NVR MAC addr
+	    memcpy(lc->target_MACaddr.macaddr, p2p_key_dist_packet->addid.mac2, MAC_LEN);
 	}else if(Self_type == NVR){
 		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
 		memset(Securelinks.links[i].CK, 0, KEY_LEN);
-		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+KEY_LEN, sizeof(Ports));
+		memcpy(&Securelinks.links[i].partner_ip, p2p_key_dist_packet->secure_link_info+KEY_LEN, MAXIDSTRING);
+		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+KEY_LEN+MAXIDSTRING, sizeof(Ports));
+	    // get IPC MAC addr
+	    memcpy(lc->target_MACaddr.macaddr, p2p_key_dist_packet->addid.mac1, MAC_LEN);
 	}else{
-		printf("neither IPC nor NVR!!\n");
+		printf("Myself is neither IPC nor NVR!!\n");
 	}
     printf("[wait for sm1] secure link info is not decrypted !\n");
 
     // get IK_P2P_ID, CK_P2P_ID
-    memcpy(lc->IK_P2P_ID, p2p_key_dist_packet->IK_P2P_ID, SHA256_DIGEST_SIZE);
-    memcpy(lc->CK_P2P_ID, p2p_key_dist_packet->CK_P2P_ID, SHA256_DIGEST_SIZE);
+    memcpy(Securelinks.links[i].IK_ID, p2p_key_dist_packet->IK_P2P_ID, SHA256_DIGEST_SIZE);
+    memcpy(Securelinks.links[i].CK_ID, p2p_key_dist_packet->CK_P2P_ID, SHA256_DIGEST_SIZE);
 
     return TRUE;
 }
@@ -2006,6 +2161,413 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
  * IPC communicate to NVR process
  * (step 23-30)
  */
+// step23a/23b: IPC - NVR / NVR - IPC
+int ProcessP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token)
+{
+	printf("In ProcessP2PAuthToken:\n");
+
+	// fill flag
+	p2p_auth_token->flag = 23;
+
+	// fill IK_IPC_NVR_ID
+	int i;
+	if( (i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0 ){
+		if(Securelinks.nlinks >= MAXLINKS){
+			printf("Links is full!\n");
+			return FALSE;
+		}else{
+			printf("No secure link information with %s!\n ", cc->peer_id);
+			return FALSE;
+		}
+	}
+	memcpy(p2p_auth_token->IK_P2P_ID, Securelinks.links[i].IK_ID, SHA256_DIGEST_SIZE);
+
+	// fill addid
+	if(cc->peer_type == NVR){
+		memcpy(p2p_auth_token->addid.mac1, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_auth_token->addid.mac2, cc->peer_MACaddr.macaddr, MAC_LEN);
+	}else if(cc->peer_type == IPC){
+		memcpy(p2p_auth_token->addid.mac1, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_auth_token->addid.mac2, cc->self_MACaddr.macaddr, MAC_LEN);
+	}else{
+		printf("Myself is neither IPC nor NVR!!\n");
+	}
+
+	// fill randnum
+	gen_randnum((BYTE *)p2p_auth_token->randnum, RAND_LEN);
+	memcpy(cc->self_randnum, p2p_auth_token->randnum, RAND_LEN);
+
+	// fill digest
+	hmac_sha256((BYTE *)p2p_auth_token, sizeof(P2PAuthToken)-sizeof(p2p_auth_token->digest),
+			Securelinks.links[i].IK, KEY_LEN,
+			p2p_auth_token->digest, SHA256_DIGEST_SIZE);
+
+	return TRUE;
+}
+
+// step24: IPC/NVR
+int HandleP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token)
+{
+	printf("In HandleP2PAuthToken:\n");
+
+	// verify digest
+	int i;
+	unsigned char digest[SHA256_DIGEST_SIZE];
+
+	if((i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0){
+		printf("No such secure link!\n");
+		return FALSE;
+	}
+	hmac_sha256((BYTE *)p2p_auth_token, sizeof(P2PAuthToken)-sizeof(p2p_auth_token->digest),
+			Securelinks.links[i].IK, KEY_LEN,
+			digest, SHA256_DIGEST_SIZE);
+	if(memcmp(p2p_auth_token->digest, digest, SHA256_DIGEST_SIZE)){
+		printf("digest verified failed!\n");
+		return FALSE;
+	}
+
+	// verify IK_IPC_NVR_ID
+	if(memcmp(p2p_auth_token->IK_P2P_ID, Securelinks.links[i].IK_ID, SHA256_DIGEST_SIZE)){
+		printf("IK_ID verified failed!\n");
+		return FALSE;
+	}
+
+	// compute reauth_IK_IPC_NVR
+	/*
+	 * reauth_IK_IPC_NVR = KD-HMAC-SHA256(IK, MAC_IPC || MAC_NVR ||
+	 *     n_IPC || n_NVR || "reauthentication IK expansion for key and additional nonce")
+	 */
+	char *tempstring = "reauthentication IK expansion for key and additional nonce";
+	int outputlen = SHA256_DIGEST_SIZE;
+	int textlen = 2*MAC_LEN + 2*RAND_LEN + strlen(tempstring);
+	unsigned char *output = malloc(outputlen);
+	unsigned char *text = malloc(textlen);
+	if(cc->peer_type == NVR){
+		memcpy(text, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+MAC_LEN, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+2*MAC_LEN, cc->self_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+RAND_LEN, cc->peer_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+2*RAND_LEN, tempstring, strlen(tempstring));
+	}else if(cc->peer_type == IPC){
+		memcpy(text, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+MAC_LEN, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+2*MAC_LEN, cc->peer_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+RAND_LEN, cc->self_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+2*RAND_LEN, tempstring, strlen(tempstring));
+	}else{
+		printf("peer_type is neither NVR nor IPC!");
+	}
+
+	if((i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0){
+		printf("No such secure link!\n");
+		return FALSE;
+	}
+	kd_hmac_sha256(text, textlen, Securelinks.links[i].IK,
+			KEY_LEN, output, outputlen);
+
+	memcpy(Securelinks.links[i].reauth_IK, output, outputlen);
+	free(output);
+	free(text);
+
+	/* if Self_type == IPC,
+	 * start encryted video transmitting using Securelinks.links[i].CK after returned
+	 */
+	return TRUE;
+}
+
+// step25a/25b: IPC - NVR / NVR - IPC
+int ProcessP2PReauthToken(P2PCommContext *cc, P2PAuthToken *p2p_reauth_token)
+{
+	printf("In ProcessP2PReauthToken:\n");
+
+	// fill flag
+	p2p_reauth_token->flag = 25;
+
+	// fill reauth_IK_IPC_NVR_ID
+	int i;
+	if( (i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0 ){
+		if(Securelinks.nlinks >= MAXLINKS){
+			printf("Links is full!\n");
+			return FALSE;
+		}else{
+			printf("No secure link information with %s!\n ", cc->peer_id);
+			return FALSE;
+		}
+	}
+	SHA256(Securelinks.links[i].reauth_IK, SHA256_DIGEST_SIZE, Securelinks.links[i].reauth_IK_ID);
+	memcpy(p2p_reauth_token->IK_P2P_ID, Securelinks.links[i].reauth_IK_ID, SHA256_DIGEST_SIZE);
+
+	// fill addid
+	if(cc->peer_type == NVR){
+		memcpy(p2p_reauth_token->addid.mac1, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_reauth_token->addid.mac2, cc->peer_MACaddr.macaddr, MAC_LEN);
+	}else if(cc->peer_type == IPC){
+		memcpy(p2p_reauth_token->addid.mac1, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_reauth_token->addid.mac2, cc->self_MACaddr.macaddr, MAC_LEN);
+	}else{
+		printf("Myself is neither IPC nor NVR!!\n");
+	}
+
+	// fill randnum
+	gen_randnum((BYTE *)p2p_reauth_token->randnum, RAND_LEN);
+	memcpy(cc->self_randnum, p2p_reauth_token->randnum, RAND_LEN);
+
+	// fill digest
+	hmac_sha256((BYTE *)p2p_reauth_token, sizeof(P2PAuthToken)-sizeof(p2p_reauth_token->digest),
+			Securelinks.links[i].reauth_IK, SHA256_DIGEST_SIZE,
+			p2p_reauth_token->digest, SHA256_DIGEST_SIZE);
+
+	return TRUE;
+}
+
+// step26: IPC/NVR
+int HandleP2PReauthToken(P2PCommContext *cc, P2PAuthToken *p2p_reauth_token)
+{
+	printf("In HandleP2PReauthToken:\n");
+
+	// verify digest
+	int i;
+	unsigned char digest[SHA256_DIGEST_SIZE];
+
+	if((i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0){
+		printf("No such secure link!\n");
+		return FALSE;
+	}
+	hmac_sha256((BYTE *)p2p_reauth_token, sizeof(P2PAuthToken)-sizeof(p2p_reauth_token->digest),
+			Securelinks.links[i].reauth_IK, SHA256_DIGEST_SIZE,
+			digest, SHA256_DIGEST_SIZE);
+	if(memcmp(p2p_reauth_token->digest, digest, SHA256_DIGEST_SIZE)){
+		printf("digest verified failed!\n");
+		return FALSE;
+	}
+
+	// verify reauth_IK_IPC_NVR_ID
+	if(memcmp(p2p_reauth_token->IK_P2P_ID, Securelinks.links[i].reauth_IK_ID, SHA256_DIGEST_SIZE)){
+		printf("IK_ID verified failed!\n");
+		return FALSE;
+	}
+
+	// compute reauth_IK_IPC_NVRnew
+	/*
+	 * reauth_IK_IPC_NVRnew = KD-HMAC-SHA256(reauth_IK_IPC_NVR, MAC_IPC || MAC_NVR ||
+	 *     n_IPC || n_NVR || "reauthentication IK expansion for key and additional nonce")
+	 */
+	char *tempstring = "reauthentication IK expansion for key and additional nonce";
+	int outputlen = SHA256_DIGEST_SIZE;
+	int textlen = 2*MAC_LEN + 2*RAND_LEN + strlen(tempstring);
+	unsigned char *output = malloc(outputlen);
+	unsigned char *text = malloc(textlen);
+	if(cc->peer_type == NVR){
+		memcpy(text, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+MAC_LEN, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+2*MAC_LEN, cc->self_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+RAND_LEN, cc->peer_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+2*RAND_LEN, tempstring, strlen(tempstring));
+	}else if(cc->peer_type == IPC){
+		memcpy(text, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+MAC_LEN, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+2*MAC_LEN, cc->peer_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+RAND_LEN, cc->self_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+2*RAND_LEN, tempstring, strlen(tempstring));
+	}else{
+		printf("peer_type is neither NVR nor IPC!");
+	}
+
+	if((i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0){
+		printf("No such secure link!\n");
+		return FALSE;
+	}
+	kd_hmac_sha256(text, textlen, Securelinks.links[i].reauth_IK,
+			SHA256_DIGEST_SIZE, output, outputlen);
+
+	memcpy(Securelinks.links[i].reauth_IK, output, outputlen);
+
+	if(Self_type == IPC){
+		// compute CK_IPC_NVRnew
+		/*
+		 * CK_IPC_NVRnew = KD-HMAC-SHA256(CK_IPC_NVR, MAC_IPC || MAC_NVR ||
+		 *     n_IPC || n_NVR || "reauthentication CK expansion for key and additional nonce")
+		 */
+		tempstring = "reauthentication CK expansion for key and additional nonce";
+		memcpy(text, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+MAC_LEN, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(text+2*MAC_LEN, cc->self_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+RAND_LEN, cc->peer_randnum, RAND_LEN);
+		memcpy(text+2*MAC_LEN+2*RAND_LEN, tempstring, strlen(tempstring));
+
+		if((i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0){
+			printf("No such secure link!\n");
+			return FALSE;
+		}
+		kd_hmac_sha256(text, textlen, Securelinks.links[i].CK,
+				KEY_LEN, output, outputlen);
+
+		memcpy(Securelinks.links[i].CK, output, outputlen);
+	}
+
+	free(output);
+	free(text);
+
+	/* if Self_type == IPC,
+	 * start encryted video transmitting using UPDATED KEY Securelinks.links[i].CK after returned
+	 */
+	return TRUE;
+}
+
+// step27a/27b: IPC - NVR / NVR - IPC
+int ProcessP2PByeSessionToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_session_token)
+{
+	printf("In ProcessP2PByeSessionToken:\n");
+
+	// fill flag
+	p2p_bye_session_token->flag = 27;
+
+	// fill reauth_IK_IPC_NVRnew_ID
+	int i;
+	if( (i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0 ){
+		if(Securelinks.nlinks >= MAXLINKS){
+			printf("Links is full!\n");
+			return FALSE;
+		}else{
+			printf("No secure link information with %s!\n ", cc->peer_id);
+			return FALSE;
+		}
+	}
+	SHA256(Securelinks.links[i].reauth_IK, SHA256_DIGEST_SIZE, Securelinks.links[i].reauth_IK_ID);
+	memcpy(p2p_bye_session_token->IK_P2P_ID, Securelinks.links[i].reauth_IK_ID, SHA256_DIGEST_SIZE);
+
+	// fill addid
+	if(cc->peer_type == NVR){
+		memcpy(p2p_bye_session_token->addid.mac1, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_bye_session_token->addid.mac2, cc->peer_MACaddr.macaddr, MAC_LEN);
+	}else if(cc->peer_type == IPC){
+		memcpy(p2p_bye_session_token->addid.mac1, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_bye_session_token->addid.mac2, cc->self_MACaddr.macaddr, MAC_LEN);
+	}else{
+		printf("Myself is neither IPC nor NVR!!\n");
+	}
+
+	// fill randnum
+	gen_randnum((BYTE *)p2p_bye_session_token->randnum, RAND_LEN);
+	memcpy(cc->self_randnum, p2p_bye_session_token->randnum, RAND_LEN);
+
+	// fill digest
+	hmac_sha256((BYTE *)p2p_bye_session_token, sizeof(P2PAuthToken)-sizeof(p2p_bye_session_token->digest),
+			Securelinks.links[i].reauth_IK, SHA256_DIGEST_SIZE,
+			p2p_bye_session_token->digest, SHA256_DIGEST_SIZE);
+
+	return TRUE;
+}
+
+// step28: IPC/NVR
+int HandleP2PByeSessionToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_session_token)
+{
+	printf("In HandleP2PByeSessionToken:\n");
+
+	// verify digest
+	int i;
+	unsigned char digest[SHA256_DIGEST_SIZE];
+
+	if((i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0){
+		printf("No such secure link!\n");
+		return FALSE;
+	}
+	hmac_sha256((BYTE *)p2p_bye_session_token, sizeof(P2PAuthToken)-sizeof(p2p_bye_session_token->digest),
+			Securelinks.links[i].reauth_IK, SHA256_DIGEST_SIZE,
+			digest, SHA256_DIGEST_SIZE);
+	if(memcmp(p2p_bye_session_token->digest, digest, SHA256_DIGEST_SIZE)){
+		printf("digest verified failed!\n");
+		return FALSE;
+	}
+
+	// verify reauth_IK_IPC_NVR_ID
+	if(memcmp(p2p_bye_session_token->IK_P2P_ID, Securelinks.links[i].reauth_IK_ID, SHA256_DIGEST_SIZE)){
+		printf("IK_ID verified failed!\n");
+		return FALSE;
+	}
+
+	/*
+	 * Bye session completed after returned
+	 */
+	return TRUE;
+}
+
+// step29a/29b: IPC - NVR / NVR - IPC
+int ProcessP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token)
+{
+	printf("In ProcessP2PByeLinkToken:\n");
+
+	// fill flag
+	p2p_bye_link_token->flag = 29;
+
+	// fill reauth_IK_IPC_NVRnew_ID
+	int i;
+	if( (i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0 ){
+		if(Securelinks.nlinks >= MAXLINKS){
+			printf("Links is full!\n");
+			return FALSE;
+		}else{
+			printf("No secure link information with %s!\n ", cc->peer_id);
+			return FALSE;
+		}
+	}
+	memcpy(p2p_bye_link_token->IK_P2P_ID, Securelinks.links[i].IK_ID, SHA256_DIGEST_SIZE);
+
+	// fill addid
+	if(cc->peer_type == NVR){
+		memcpy(p2p_bye_link_token->addid.mac1, cc->self_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_bye_link_token->addid.mac2, cc->peer_MACaddr.macaddr, MAC_LEN);
+	}else if(cc->peer_type == IPC){
+		memcpy(p2p_bye_link_token->addid.mac1, cc->peer_MACaddr.macaddr, MAC_LEN);
+		memcpy(p2p_bye_link_token->addid.mac2, cc->self_MACaddr.macaddr, MAC_LEN);
+	}else{
+		printf("Myself is neither IPC nor NVR!!\n");
+	}
+
+	// fill randnum
+	gen_randnum((BYTE *)p2p_bye_link_token->randnum, RAND_LEN);
+	memcpy(cc->self_randnum, p2p_bye_link_token->randnum, RAND_LEN);
+
+	// fill digest
+	hmac_sha256((BYTE *)p2p_bye_link_token, sizeof(P2PAuthToken)-sizeof(p2p_bye_link_token->digest),
+			Securelinks.links[i].IK, SHA256_DIGEST_SIZE,
+			p2p_bye_link_token->digest, SHA256_DIGEST_SIZE);
+
+	return TRUE;
+}
+
+// step30: IPC/NVR
+int HandleP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token)
+{
+	printf("In HandleP2PByeLinkToken:\n");
+
+	// verify digest
+	int i;
+	unsigned char digest[SHA256_DIGEST_SIZE];
+
+	if((i=getSecureLinkNum(&Securelinks, cc->peer_id)) < 0){
+		printf("No such secure link!\n");
+		return FALSE;
+	}
+	hmac_sha256((BYTE *)p2p_bye_link_token, sizeof(P2PAuthToken)-sizeof(p2p_bye_link_token->digest),
+			Securelinks.links[i].IK, SHA256_DIGEST_SIZE,
+			digest, SHA256_DIGEST_SIZE);
+	if(memcmp(p2p_bye_link_token->digest, digest, SHA256_DIGEST_SIZE)){
+		printf("digest verified failed!\n");
+		return FALSE;
+	}
+
+	// verify reauth_IK_IPC_NVR_ID
+	if(memcmp(p2p_bye_link_token->IK_P2P_ID, Securelinks.links[i].IK_ID, SHA256_DIGEST_SIZE)){
+		printf("IK_ID verified failed!\n");
+		return FALSE;
+	}
+
+	/*
+	 * Bye link completed after returned
+	 */
+	return TRUE;
+}
 //////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////
