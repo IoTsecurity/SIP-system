@@ -615,6 +615,8 @@ static unsigned char *genECDHsharedsecret(EVP_PKEY *pkey, EVP_PKEY *peerkey, siz
 		if(1 != (EVP_PKEY_derive(ctx, secret, secret_len))) printf("Error in genECDHsharedsecret\n");
 
 		EVP_PKEY_CTX_free(ctx);
+		EVP_PKEY_free(peerkey);
+		EVP_PKEY_free(pkey);
 
 		/* Never use a derived secret directly. Typically it is passed
 		 * through some hash function to produce a key */
@@ -1378,7 +1380,7 @@ int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
 	//edited by lvshichao 20140416     &(certificate_auth_resp_packet->asusign)--->&(certificate_auth_resp_packet->cervalresasusign)
 	memcpy(&(access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result_asu_sign),
 			&(certificate_auth_resp_packet->cervalresasusign),
-			sizeof(certificate_valid_result));
+			sizeof(sign_attribute));
   //edited by lvshichao 20140416
 	return TRUE;
 

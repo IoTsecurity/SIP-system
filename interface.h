@@ -37,7 +37,7 @@
 #include <sys/types.h>    // for socket
 #include <sys/socket.h>    // for socket
 
-#define CHAT_SERVER_PORT    (1111)
+#define CHAT_SERVER_PORT    (6666)
 
 #define MAC_LEN                  6           /* MAC地址长度 */
 #define RAND_LEN                 32          /* 随机数长度 */
