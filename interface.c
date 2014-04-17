@@ -42,7 +42,7 @@ SecureLinks Securelinks;
 
 //added by lvshichao 20140416 begin
 int asu_socket;
-static char *ASU_ip_addr = "192.168.115.54";
+static char *ASU_ip_addr = "127.0.0.1";//"192.168.115.54";
 
 int connect_to_asu()
 {
