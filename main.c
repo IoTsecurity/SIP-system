@@ -25,6 +25,8 @@ int main(int argc,char *argv[])
 		char from[50];
 		struct st_rtsptype rtsptype;
 
+		sip_entity target;
+
 		if(argc>1)
 		init_conf(argv[1]);
 		else
@@ -38,6 +40,10 @@ int main(int argc,char *argv[])
 		printf("5: send nosession message\n");
 		printf("6: key_nego\n");
 		printf("7: key distribute\n");
+
+		printf("8: token exchange\n");
+		printf("9: video invite\n");
+
 		printf("\n");
 		printf("a: bye\n");
 		printf("b: run as a uas\n");
@@ -74,24 +80,54 @@ int main(int argc,char *argv[])
 					rtsptype.rtsp_datatype="PLAY";
 					rtsptype.scale=1;
 					uac_get_Historyrtsp(rtsp_data,&rtsptype);
-					uac_send_message(inviteId,"INFO","Application/MANSRTSP",rtsp_data,NULL);
+					alter_message info;
+					info.body=rtsp_data;
+					info.method_type="INFO";
+					info.content_type="Application/MANSRTSP";
+					info.route=NULL;
+					uac_send_message(inviteId,&info);
 					break;
 				case '4':
 					//send "EOF" message
 					get_HistoryEOFmessage(EOF_message,"EOF");
-					uac_send_message(inviteId,"MESSAGE","Application/MANSCDP+xml",EOF_message,NULL);
+					alter_message eof_info;
+					eof_info.body=EOF_message;
+					eof_info.method_type="MESSAGE";
+					eof_info.content_type="Application/MANSCDP+xml";
+					eof_info.route=NULL;
+					uac_send_message(inviteId,&eof_info);
 					//uas_send_message(inviteId,"INFO","Application/MANSRTSP","sssss");
 					break;
 				case '5':
-					snprintf(to, 50,"sip:%s@%s:%s",device_info.server_id,device_info.server_ip,device_info.server_port);
-					snprintf(from, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
-					uac_send_noSessionMessage(to,from, NULL,"this is no session message",NULL);
+					memset(&target,0,sizeof(target));
+					sprintf(target.ip, "%s", device_info.server_ip);
+					target.port=atoi(device_info.server_port);
+					sprintf(target.username, "%s", device_info.server_id);
+					//snprintf(to, 50,"sip:%s@%s:%s",device_info.server_id,device_info.server_ip,device_info.server_port);
+
+					alter_message mess;
+					mess.body="this is no session message";
+					mess.route=NULL;
+					mess.subject=NULL;
+
+					uac_send_noSessionMessage(&target,&mess);
 					break;
 				case '6':
 					uac_key_nego();
 					break;
 				case '7':
 					uac_key_distribute();
+					break;
+				case '8':
+					memset(&target,0,sizeof(target));
+					sprintf(target.ip, "%s", "192.168.17.127");
+					target.port=5063;
+					sprintf(target.username, "%s", "user2");
+
+					uac_token_exchange(&target);
+					break;
+				case '9':
+					//video_invite();
 					break;
 				case 'a':
 					uac_bye(inviteId);

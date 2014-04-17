@@ -321,7 +321,7 @@ int uac_bye(sessionId inviteId)
 	eXosip_call_terminate( inviteId.cid, inviteId.did);
 	eXosip_unlock();
 	eXosip_event_t *g_event  = NULL;/*消息事件*/
-	uac_waitfor(EXOSIP_CALL_MESSAGE_ANSWERED,&g_event,inviteId);
+	uac_waitfor(&inviteId,EXOSIP_CALL_MESSAGE_ANSWERED,&g_event);
 	if(!g_event)
 	{
 		printf("no bye response\n");
@@ -349,20 +349,20 @@ int uac_send_info(sessionId inviteId)
 	return i;
 }
 
-int uac_send_message(sessionId inviteId,char * message_type ,char * context_type,char * message_str,char * subject)
-{
+int uac_send_message(sessionId inviteId,alter_message * alter_m)
+{//, char * message_type ,char * context_type,char * message_str,char * subject
 	osip_message_t *message;
 	int i;
 	eXosip_lock ();
-	i = eXosip_call_build_request (inviteId.did,message_type/*"MESSAGE" or "INFO"*/, &message);
+	i = eXosip_call_build_request (inviteId.did,alter_m->method_type/*"MESSAGE" or "INFO"*/, &message);
 	if (i == 0)
 	{
 		//snprintf (message_body, 999, message_str/*"message_info"*/);
-		if(context_type!=NULL)
-		osip_message_set_content_type (message, context_type/*"Application/MANSRTSP"*/);
-		if(subject!=NULL)
-		osip_message_set_subject(message,subject);
-		osip_message_set_body (message, message_str, strlen (message_str));
+		if(alter_m->content_type!=NULL)
+		osip_message_set_content_type (message, alter_m->content_type/*"Application/MANSRTSP"*/);
+		if(alter_m->subject!=NULL)
+		osip_message_set_subject(message,alter_m->subject);
+		osip_message_set_body (message, alter_m->body, strlen (alter_m->body));
 		i = eXosip_call_send_request (inviteId.did, message);
 	}
 	eXosip_unlock ();
@@ -370,41 +370,26 @@ int uac_send_message(sessionId inviteId,char * message_type ,char * context_type
 	return i;
 }
 
-int uac_send_noSessionMessage(char * to, char * from, char * route,char * content,char * subject)
-{
+int uac_send_noSessionMessage(sip_entity* to, alter_message * alter_m)
+{//,char * to, char * from, char * route,char * content,char * subject
 	osip_message_t *message;
+	char from[4+CHARLEN+1+15+1+4+1];
+	snprintf(from,"sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
 	eXosip_lock ();
-	eXosip_message_build_request (&message, "MESSAGE", to,from, route);
+	eXosip_message_build_request (&message, "MESSAGE", to,from, alter_m->route);
 	printf("message->sip_version:%s \n",message->sip_version);
 	printf("eXosip_message_build_request end \n");
 
-	if(subject!=NULL)
-	osip_message_set_subject(message,subject);
+	if(alter_m->subject!=NULL)
+	osip_message_set_subject(message,alter_m->subject);
 
-	osip_message_set_body(message,content,strlen(content));
+	osip_message_set_body(message,alter_m->body,strlen(alter_m->body));
 	printf("osip_message_set_body end \n");
 	osip_message_set_content_type(message,"text/code");
 	printf("osip_message_set_content_type end \n");
 	eXosip_message_send_request(message);
 	printf("eXosip_message_send_request end \n");
 	eXosip_unlock ();
-
-	eXosip_event_t *je  = NULL;
-/*	for (;;)
-			{
-				je = eXosip_event_wait(10, 500);//侦听消息的到来
-
-				if (NULL == je)//没有接收到消息
-				{
-					continue;
-				}
-				if (EXOSIP_MESSAGE_NEW == je->type)//xiaoxi
-				{
-					printf("receive message\n");
-				}
-
-			}
-*/
 	return 1;
 	}
 
@@ -416,13 +401,24 @@ int uac_key_nego()
 	char from[100];
 
 	//key_nego 1
-	snprintf(to, 50,"sip:%s@%s:%s",device_info.server_id,device_info.server_ip,device_info.server_port);
-	snprintf(from, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
+	snprintf(to, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.server_ip,device_info.server_port);
+	snprintf(from, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.server_ip,device_info.server_port);
 	//uac_send_noSessionMessage(to,from, NULL,"this is no KEY_NAGO1 message","KEY_NAGO1\n");
 	sessionId id;
-	uac_sendInvite(&id,to,"this is no KEY_NAGO1 message","text/code","KEY_NAGO1\n");
+	sip_entity target;
+	memset(&target,0,sizeof(target));
+	sprintf(target.ip, "%s", device_info.server_ip);
+	target.port=atoi(device_info.server_port);
+	sprintf(target.username, "%s", device_info.ipc_id);
+
+	alter_message invite_message;
+	invite_message.body="this is no KEY_NAGO1 message";
+	invite_message.content_type="text/code";
+	invite_message.subject="KEY_NAGO1\n";
+	uac_sendInvite(&id,&target,&invite_message);
+	//uac_sendInvite(&id,to,"this is no KEY_NAGO1 message","text/code","KEY_NAGO1\n");
 	//printf("uac_sendInvite sucess\n");
-	uac_waitfor(EXOSIP_CALL_ANSWERED,&g_event,id);
+	uac_waitfor(&id,EXOSIP_CALL_ANSWERED,&g_event);
 	if(g_event==NULL)
 	{
 		printf("no response\n\n");
@@ -478,12 +474,18 @@ int uac_key_nego()
 	g_event=NULL;
 
 	//key_nego 3
-	if(uac_send_message(id,"MESSAGE","text/code","this is no KEY_NAGO3 message","KEY_NAGO3")!=0)
+	alter_message key_nego_message;
+	key_nego_message.body="this is no KEY_NAGO3 message";
+	key_nego_message.method_type="MESSAGE";
+	key_nego_message.content_type="text/code";
+	key_nego_message.subject="KEY_NAGO3";
+
+	if(uac_send_message(id,&key_nego_message)!=0)
 	{
 		printf("uac_send_message error\n");
 		return 0;
 	}
-	if(!uac_waitfor(EXOSIP_CALL_MESSAGE_ANSWERED,&g_event,id))
+	if(!uac_waitfor(&id,EXOSIP_CALL_MESSAGE_ANSWERED,&g_event))
 	{
 		printf("g_event->type:%d\n",g_event->type);
 		printf("g_event->cid:%d\n",g_event->cid);
@@ -532,10 +534,20 @@ int uac_key_distribute()
 	//uac_send_noSessionMessage(to,from, NULL,"peer userid:user2\n","KEY_DISTRIBUTE1\n");
 
 	sessionId id;
-	uac_sendInvite(&id,to,"peer userid:user2\n","text/code","KEY_DISTRIBUTE1\n");
+	sip_entity target;
+	memset(&target,0,sizeof(target));
+	sprintf(target.ip, "%s", device_info.server_ip);
+	target.port=atoi(device_info.server_port);
+	sprintf(target.username, "%s", peer_id);
+
+	alter_message invite_message;
+	invite_message.body="peer userid:user2\n";
+	invite_message.content_type="text/code";
+	invite_message.subject="KEY_DISTRIBUTE1\n";
+	uac_sendInvite(&id,&target,&invite_message);
 
 	//printf("uac_sendInvite sucess\n");
-	uac_waitfor(EXOSIP_CALL_ANSWERED,&g_event,id);
+	uac_waitfor(&id,EXOSIP_CALL_ANSWERED,&g_event);
 	if(g_event==NULL)
 	{
 		printf("no response\n\n");
@@ -591,7 +603,7 @@ int uac_key_distribute()
 	return 1;
 }
 
-int uac_waitfor(eXosip_event_type_t t,eXosip_event_t **event,sessionId id)
+int uac_waitfor(sessionId* id, eXosip_event_type_t t,eXosip_event_t **event)
 {
 	eXosip_event_t *g_event  = NULL;/*消息事件*/
 
@@ -613,9 +625,13 @@ int uac_waitfor(eXosip_event_type_t t,eXosip_event_t **event,sessionId id)
 		}
 		//printf("id.call_id:%s\n",id.call_id);
 		//printf("g_event->request->call_id->number:%s\n",g_event->request->call_id->number);
-		if(strcmp(id.call_id,g_event->request->call_id->number))
+		if(id!=NULL && strcmp(id->call_id,g_event->request->call_id->number))
 		{
 			//printf("enter0\n");
+			continue;
+		}
+		if(g_event->type==EXOSIP_CALL_RINGING)
+		{
 			continue;
 		}
 		if(g_event->type==t)
@@ -632,16 +648,16 @@ int uac_waitfor(eXosip_event_type_t t,eXosip_event_t **event,sessionId id)
 	return 0;
 }
 
-int uac_sendInvite(sessionId * id, char * to, char * message, char *meessageType,char *subject)
-{
+int uac_sendInvite(sessionId * id, sip_entity* to, alter_message * alter_m)
+{// char * to, char * message, char *meessageType,char *subject
 	osip_message_t *invite;
 	int i;// optionnal route header
-	//char to_[100];
-	//snprintf (to_, 100,"sip:%s@%s", device_info.server_id,to);
+	char to_[100];
+	snprintf (to_, 100,"sip:%s@%s", to->username,to->ip);
 	char from_[100];
 	snprintf (from_, 100,"sip:%s@%s:%s",device_info.ipc_id, device_info.ipc_ip ,device_info.ipc_port );
 
-	i = eXosip_call_build_initial_invite (&invite,to,from_,NULL,subject );
+	i = eXosip_call_build_initial_invite (&invite,to_,from_,NULL,alter_m->subject );
 	if (i != 0)
 	{
 	return -1;
@@ -652,8 +668,8 @@ int uac_sendInvite(sessionId * id, char * to, char * message, char *meessageType
 	eXosip_guess_localip (AF_INET, localip, 128);
 	localip[128]=device_info.ipc_ip;//需要修改
 
-	i=osip_message_set_body (invite, message, strlen (message));
-	i=osip_message_set_content_type (invite, meessageType);
+	i=osip_message_set_body (invite, alter_m->body, strlen (alter_m->body));
+	i=osip_message_set_content_type (invite, alter_m->content_type);
 	}
 	eXosip_lock ();
 	i = eXosip_call_send_initial_invite (invite);
@@ -669,6 +685,37 @@ int uac_sendInvite(sessionId * id, char * to, char * message, char *meessageType
 
 	return 0;
 
+}
+
+int uac_token_exchange(sip_entity * target)
+{
+
+	char to[100];
+	char from[100];
+
+	//key_nego 1
+	//sprintf(to,"sip:%s@%s:%d",target->username,target->ip,target->port);
+	//sprintf(from, "sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
+	//uac_send_noSessionMessage(to,from, NULL,"this is no KEY_NAGO1 message","KEY_NAGO1\n");
+
+	alter_message token_mess;
+	token_mess.body="this is no session message";
+	token_mess.subject="Token Exchange1\n";
+	uac_send_noSessionMessage(target,&token_mess);
+	eXosip_event_t *event;
+	uac_waitfor(NULL, EXOSIP_MESSAGE_NEW,&event);
+
+	if(event==NULL)
+	{
+		printf("other response\n");
+		return -1;
+	}
+	osip_body_t *message_body = NULL;
+	osip_message_get_body(event->request, 0, &message_body);
+	printf("message_body->body:%s\n",message_body->body);
+
+
+	return 1;
 }
 
 int init_conf(char * file)

@@ -22,6 +22,20 @@
 #ifndef UAC_H
 #define UAC_H
 
+typedef struct sip_entity_{
+	char ip[4*3+3+1];
+	int port;
+	char username[CHARLEN];
+}sip_entity;
+
+typedef struct alter_message_{
+	char * subject;			// 消息的subject字段
+	char * method_type;		// 请求方式字段，消息是INFO还是MESSAGE
+	char * content_type;		// 消息Content_Type字段，body中的类型，如"Application/MANSRTSP" ，"text/code" 等
+	char * body;				// 消息中的Message Body，有效负荷，承载的消息
+	char * route;				// 消息route字段
+}alter_message;
+
 //#define CharLen 50
 
 //char *auth_request_packet_data;
@@ -65,15 +79,24 @@ int uac_bye(sessionId inviteId);
 int uac_send_info(sessionId inviteId);
 
 //send MESSAGE/INFO (according to type_info) package by the inviteID
-int uac_send_message(sessionId inviteId,char * type ,char * type_info,char * message_str,char * subject);
+//int uac_send_message(sessionId inviteId,char * type ,char * type_info,char * message_str,char * subject);
+int uac_send_message(sessionId inviteId,  alter_message * alter_m);
 
-int uac_send_noSessionMessage(char * to, char * from, char * route,char * content,char * subject);
+//int uac_send_noSessionMessage(char * to, char * from, char * route,char * content,char * subject);
+int uac_send_noSessionMessage(sip_entity* to, alter_message * alter_m);
 
 int uac_key_nego();
 
-int uac_waitfor(eXosip_event_type_t t,eXosip_event_t **event,sessionId id);
+int uac_waitfor(sessionId* id, eXosip_event_type_t t,eXosip_event_t **event);
+
+int uac_sendInvite(sessionId * id, sip_entity* to, alter_message * alter_m);
+
+/* 跟一个sip ua 第一次交换token， 进行p2p通信 */
+int uac_token_exchange(sip_entity* target);
 
 //init the configure file
 int init_conf(char * file);
+
+
 
 #endif

@@ -40,6 +40,104 @@ enum DeviceType Self_type; // =IPC/SIPserver/NVR/Client
 KeyBox Keybox;
 SecureLinks Securelinks;
 
+//added by lvshichao 20140416 begin
+int asu_socket;
+static char *ASU_ip_addr = "192.168.115.54";
+
+int connect_to_asu()
+{
+	  int client_socket;
+    struct sockaddr_in client_addr;
+    struct sockaddr_in server_addr;
+    socklen_t server_addr_length;
+
+    int nRecvBuf = 32*1024; //设置为32K
+    int nSendBuf = 32*1024; //设置为32K
+
+    //设置一个socket地址结构client_addr,代表客户端internet地址, 端口
+    bzero(&client_addr,sizeof(client_addr)); //把一段内存区的内容全部设置为0
+    client_addr.sin_family = AF_INET;    //internet协议族
+    client_addr.sin_addr.s_addr = htons(INADDR_ANY);//INADDR_ANY表示自动获取本机地址
+    client_addr.sin_port = htons(0);    //0表示让系统自动分配一个空闲端口
+    //创建用于internet的流协议(TCP)socket,用client_socket代表客户端socket
+
+    if( (client_socket = socket(AF_INET,SOCK_STREAM,0)) < 0){
+        printf("Create Socket Failed!\n");
+        return FALSE;
+    }
+    //把客户端的socket和客户端的socket地址结构联系起来
+    if( bind(client_socket,(struct sockaddr*)&client_addr,sizeof(client_addr))){
+        printf("Client Bind Port Failed!\n");
+        return FALSE;
+    }
+
+    //设置一个socket地址结构server_addr,代表服务器的internet地址, 端口
+    bzero(&server_addr,sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    if(inet_aton(ASU_ip_addr,&server_addr.sin_addr) == 0) //服务器的IP地址来自程序的参数
+    {
+        printf("Server IP Address Error!\n");
+        return FALSE;
+    }
+    server_addr.sin_port = htons(CHAT_SERVER_PORT);
+    server_addr_length = sizeof(server_addr);
+
+    setsockopt(client_socket,SOL_SOCKET,SO_RCVBUF,(const BYTE *)&nRecvBuf,sizeof(int));
+    setsockopt(client_socket,SOL_SOCKET,SO_SNDBUF,(const BYTE *)&nSendBuf,sizeof(int));
+
+    //客户端向服务器发起连接,连接成功后client_socket代表了客户端和服务器的一个socket连接
+    if(connect(client_socket,(struct sockaddr*)&server_addr, server_addr_length) < 0)
+    {
+        printf("AE Can Not Connect To ASU %s!\n",ASU_ip_addr);
+        return FALSE;
+    }
+    return client_socket;
+
+}
+
+int send_to_peer(int new_server_socket, BYTE *send_buffer, int send_len)
+{
+
+	int length = send(new_server_socket,send_buffer,send_len,0);
+	//printf("--- send %d bytes ---\n",length);
+	printf("---------发送 %d 字节数据！---------\n",length);
+
+    if(length <0){
+        printf("Socket Send Data Failed Or Closed\n");
+        close(new_server_socket);
+        return FALSE;
+    }
+	else
+		return TRUE;
+}
+
+int recv_from_peer(int new_server_socket, BYTE *recv_buffer, int recv_len)
+{
+	int length = recv(new_server_socket,recv_buffer, recv_len, MSG_WAITALL);
+	
+	if (length < 0)
+	{
+		printf("Receive Data From Server Failed\n");
+		return FALSE;
+	}else if(length < recv_len)
+	{
+		printf("Receive data from server less than required, %d bytes.\n", length);
+		return FALSE;
+	}else if(length > recv_len)
+	{
+		printf("Receive data from server more than required.\n");
+		return FALSE;
+	}
+	else
+	{
+		printf("receive data succeed, %d bytes.\n",length);
+		return TRUE;
+	}
+
+}
+//added by lvshichao 20140416 end
+
+
 static int getKeyRingNum(const KeyBox *keybox, const char *id)
 {
 	int i;
@@ -1185,12 +1283,22 @@ int ProcessWAPIProtocolCertAuthRequest(RegisterContext *rc,
 
 	certificate_auth_requ_packet->aesign.sign.length = sign_len;
 	memcpy(certificate_auth_requ_packet->aesign.sign.data,sign_value,sign_len);
-
+	
 	return TRUE;
 }
 
 // step5: Radius Server - SIP Server
 // implemented source files on Radius Server
+int talk_to_asu(CertificateAuthRequ *certificate_auth_requ_packet,CertificateAuthResp *certificate_auth_resp_packet)
+{
+		//added by lvshichao 20140416
+	asu_socket = connect_to_asu();
+	send_to_peer(asu_socket,(BYTE *)certificate_auth_requ_packet, sizeof(CertificateAuthRequ));
+	recv_from_peer(asu_socket, (BYTE *)certificate_auth_resp_packet, sizeof(CertificateAuthResp));
+	return 1;
+	//added by lvshichao 20140416
+}	
+
 
 // step6: SIP Server - SIP UA(NVR)
 int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
@@ -1216,10 +1324,23 @@ int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
 	asupubkeyLen = i2d_PublicKey(asupubKey, &pTmp);
 
 	//验证ASU服务器对整个证书认证响应分组(除本字段外)的签名，检验该分组的完整性、验证该份组的发送源身份
+	//edited by lvshichao 20140416 
+	//certificate_auth_resp_packet->asusign.sign.data--->certificate_auth_resp_packet->cerauthrespasusign.sign.data
+	/*  
 	if (verify_sign((BYTE *) certificate_auth_resp_packet,
 			sizeof(CertificateAuthResp) - sizeof(sign_attribute),
 			certificate_auth_resp_packet->asusign.sign.data,
 			certificate_auth_resp_packet->asusign.sign.length, asupubKey))
+	{
+		printf("验证ASU服务器对整个证书认证响应分组(除本字段外)的签名正确！！！......\n");
+		EVP_PKEY_free(asupubKey);
+	}
+	*/
+	
+	if (verify_sign((BYTE *) certificate_auth_resp_packet,
+			sizeof(CertificateAuthResp) - sizeof(sign_attribute),
+			certificate_auth_resp_packet->cerauthrespasusign.sign.data,
+			certificate_auth_resp_packet->cerauthrespasusign.sign.length, asupubKey))
 	{
 		printf("验证ASU服务器对整个证书认证响应分组(除本字段外)的签名正确！！！......\n");
 		EVP_PKEY_free(asupubKey);
@@ -1254,10 +1375,11 @@ int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
 	memcpy(&(access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result),&(certificate_auth_resp_packet->cervalidresult),sizeof(certificate_valid_result));
 
 	//读取证书认证响应分组中的ASU服务器对证书验证结果字段的签名字段，将该字段拷贝到接入认证响应分组中的复合证书验证结果的签名字段中
+	//edited by lvshichao 20140416     &(certificate_auth_resp_packet->asusign)--->&(certificate_auth_resp_packet->cervalresasusign)
 	memcpy(&(access_auth_resp_packet->cervalrescomplex.ae_asue_cert_valid_result_asu_sign),
-			&(certificate_auth_resp_packet->asusign),
+			&(certificate_auth_resp_packet->cervalresasusign),
 			sizeof(certificate_valid_result));
-
+  //edited by lvshichao 20140416
 	return TRUE;
 
 }
@@ -2813,7 +2935,4 @@ int get_HistoryEOFmessage(char *message, char *message_type)
 
 //end History interface
 //////////////////////////////////////////////////////////////
-
-
-
 
