@@ -376,13 +376,23 @@ int ProcessWAPIProtocolCertAuthRequest(RegisterContext *rc,
 		CertificateAuthRequ *certificate_auth_requ_packet);
 
 // step5: Radius Server - SIP Server
+/* WAI认证协议 证书认证响应分组
+typedef struct _certificate_auth_resp
+{
+    addindex                   addid;                             // 地址索引ADDID
+    certificate_valid_result   cervalidresult;                    // 证书验证结果
+    sign_attribute             asusign;                           // ASU服务器签名
+}CertificateAuthResp;*/
+//replaced by lvshichao 20140416
 /* WAI认证协议 证书认证响应分组 */
 typedef struct _certificate_auth_resp
 {
     addindex                   addid;                             /* 地址索引ADDID */
     certificate_valid_result   cervalidresult;                    /* 证书验证结果 */
-    sign_attribute             asusign;                           /* ASU服务器签名 */
+    sign_attribute             cervalresasusign;                  /* ASU服务器对证书验证结果字段的签名 */
+    sign_attribute             cerauthrespasusign;                /* ASU服务器对整个证书认证响应分组(除本字段外)的签名 */
 }CertificateAuthResp;
+int talk_to_asu(CertificateAuthRequ *certificate_auth_requ_packet,	CertificateAuthResp *certificate_auth_resp_packet);
 
 /* WAI认证协议 接入鉴别响应 */
 typedef struct _access_auth_resp

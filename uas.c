@@ -16,13 +16,11 @@ int handle_invite(eXosip_event_t * g_event)
 	invite_user_type=INVITE_USER_TYPE_CLIENT;
 	invite_type=INVITE_TYPE_PLAY;
 
-
 	//interface do somthing with the sdp
 	//function_run(uas_handle_invite_sdp,message);
 	//uas_function_run(uas_handle_invite_sdp,message);
 	uas_handle_sdp(message);
 	//end interface
-
 
 	if(MSG_IS_INVITE(g_event->request))/*使用INVITE方法的请求*/
 	{
@@ -30,7 +28,6 @@ int handle_invite(eXosip_event_t * g_event)
 		/*历史视音频回放*/
 		/*视音频文件下载*/
 		osip_message_t *asw_msg = NULL;/*请求的确认型应答*/
-
 
 		eXosip_lock();
 		if(0 != eXosip_call_build_answer(g_event->tid, 200, &asw_msg))/*Build default Answer for request*/
@@ -58,8 +55,6 @@ int handle_invite(eXosip_event_t * g_event)
 		eXosip_call_send_answer(g_event->tid, 200, asw_msg);/*按照规则回复200OK with SDP*/
 		printf("eXosip_call_send_answer success!\r\n");
 		eXosip_unlock();
-
-
 	}
 	return 0;
 }
@@ -98,6 +93,7 @@ int handle_message(eXosip_event_t * g_event)
 
 		free(message);
 	}
+	return 1;
 }
 
 int handle_bye(eXosip_event_t * g_event)
@@ -234,12 +230,27 @@ void uas_eXosip_processEvent(void)
 					/*网络设备信息查询*/
 					/*设备视音频文件检索*/
 					printf("<MSG_IS_MESSAGE>\r\n");
+					osip_header_t * subject;
+					osip_message_get_subject(g_event->request,0,&subject);
+					if(subject!=NULL)
+					{
+						//printf("subject->hvalue:%s\n",subject->hvalue);
+						if(!strcmp(subject->hvalue,"KEY_DISTRIBUTE1"))
+						{
+							//do the distribute1 step
+							osip_body_t *message_body = NULL;
+							osip_message_get_body(g_event->request, 0, &message_body);
+							printf("message_body->body:%s\n",message_body->body);
+							continue;
+						}
+					}
+
 					eXosip_lock();
 					eXosip_message_build_answer(g_event->tid, 200, &g_answer);/*Build default Answer for request*/
 					eXosip_message_send_answer(g_event->tid, 200, g_answer);/*按照规则回复200OK*/
 					printf("eXosip_message_send_answer success!\r\n");
 					eXosip_unlock();
-					csenn_eXosip_paraseMsgBody(g_event);/*解析MESSAGE的XML消息体，同时保存全局会话ID*/
+					//csenn_eXosip_paraseMsgBody(g_event);/*解析MESSAGE的XML消息体，同时保存全局会话ID*/
 				}
 			}
 			break;

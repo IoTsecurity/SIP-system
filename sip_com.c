@@ -25,7 +25,7 @@
 RegisterContext *RegisterCon;
 AuthActive *authactive_data;
 P2PLinkContext * P2PLinkContext_data;
-char *auth_request_packet_data;
+AccessAuthRequ *auth_request_packet_data;
 
 /*-----------------common function----------------------*/
 
