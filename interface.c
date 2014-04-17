@@ -518,13 +518,28 @@ void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key,
 void kd_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length)
 {
 	int i;
-	for(i=0; length/SHA256_DIGEST_SIZE; i++,length-=SHA256_DIGEST_SIZE){
+	int j;
+	for(i=0; i<length/SHA256_DIGEST_SIZE; i++,length-=SHA256_DIGEST_SIZE){
+/*		printf("i=%d, length=%d, text_len=%d\n",i,length,text_len);
+		printf("\noutput= ");
+		for(j=0; j<2*SHA256_DIGEST_SIZE; j++){
+			printf("%02x ",output[j]);
+		}
+*/
 		hmac_sha256(text,text_len,key,key_len,&output[i*SHA256_DIGEST_SIZE],SHA256_DIGEST_SIZE);
 		text=&output[i*SHA256_DIGEST_SIZE];
 		text_len=SHA256_DIGEST_SIZE;
 	}
-	if(length>0)
+	/*
+	if(length>0){
+		printf("i=%d, length=%d, text_len=%d\n",i,length,text_len);
+		printf("\noutput= ");
+		for(j=0; j<2*SHA256_DIGEST_SIZE; j++){
+			printf("%02x ",output[j]);
+		}
 		hmac_sha256(text,text_len,key,key_len,&output[i*SHA256_DIGEST_SIZE],length);
+	}
+	*/
 }
 
 /*************************************************
@@ -615,8 +630,6 @@ static unsigned char *genECDHsharedsecret(EVP_PKEY *pkey, EVP_PKEY *peerkey, siz
 		if(1 != (EVP_PKEY_derive(ctx, secret, secret_len))) printf("Error in genECDHsharedsecret\n");
 
 		EVP_PKEY_CTX_free(ctx);
-		EVP_PKEY_free(peerkey);
-		EVP_PKEY_free(pkey);
 
 		/* Never use a derived secret directly. Typically it is passed
 		 * through some hash function to produce a key */
@@ -1465,6 +1478,7 @@ int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
 	 */
 	unsigned char *ECDH_keydata; // shared secret
 	size_t secretlen=KEY_LEN;
+
 	ECDH_keydata = genECDHsharedsecret(&rc->keydata, &access_auth_requ_packet->asuekeydata, &secretlen);
 
 	char *tempstring = "masterkeyexpansionforkeyandadditionalnonce";
@@ -1474,6 +1488,7 @@ int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
 			strlen(tempstring);
 	unsigned char *output = malloc(outputlen);
 	unsigned char *text = malloc(textlen);
+
 	kd_hmac_sha256(text, textlen, ECDH_keydata, KEY_LEN, output, outputlen);
 
 	int i;
@@ -1486,9 +1501,12 @@ int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
 		Keybox.nkeys++;
 		}
 	}
+
 	memcpy(Keybox.keyrings[i].MasterKey, output, sizeof(Keybox.keyrings[i].MasterKey));
 	SHA256(output+sizeof(Keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
+
 	free(output);
+
 	free(text);
 
 	return TRUE;
@@ -1538,7 +1556,7 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 
 		//verify FLAG
 		printf("verify FLAG:\n");
-		if(access_auth_resp_packet->flag != 0x04){
+		if(access_auth_resp_packet->flag != 6){
 			printf("verity flag failed.\n");
 			return FALSE;
 		}
