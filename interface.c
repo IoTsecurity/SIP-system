@@ -640,7 +640,7 @@ static unsigned char *genECDHsharedsecret(EVP_PKEY *pkey, EVP_PKEY *peerkey, siz
 {
 	unsigned char *secret;
 	if(NULL == (secret = OPENSSL_malloc(*secret_len))) printf("Error in genECDHsharedsecret\n");
-	memset(secret, 0, secret_len);
+	memset(secret, 0, *secret_len);
 	return secret;
 }
 
