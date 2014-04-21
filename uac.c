@@ -266,7 +266,7 @@ int uac_register()
 				memcpy(access_auth_resp_data,body->body, body->length);
 				decodeFromChar((char*)access_auth_resp_data,sizeof(AccessAuthResp)*2);
 
-				if(!HandleWAPIProtocolAccessAuthResp(RegisterCon,auth_request_packet_data,access_auth_resp_data))
+				if(HandleWAPIProtocolAccessAuthResp(RegisterCon,auth_request_packet_data,access_auth_resp_data)<1)
 				{
 					printf("HandleWAPIProtocolAccessAuthResp error\n");
 					return 0;
