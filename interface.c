@@ -507,12 +507,12 @@ void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key,
 {
 	HMAC_CTX ctx;
 	HMAC_CTX_init(&ctx);
-        //HMAC_Init_ex(&ctx, key, 16, EVP_sha256(), NULL);
+    //HMAC_Init_ex(&ctx, key, 16, EVP_sha256(), NULL);
 	HMAC_Init_ex(&ctx, key, key_len, EVP_sha256(), NULL);
-        //HMAC_Update(&ctx, data, 8);
+    //HMAC_Update(&ctx, data, 8);
 	HMAC_Update(&ctx, data, data_len);
-        HMAC_Final(&ctx, result, &result_len);
-        HMAC_CTX_cleanup(&ctx);
+    HMAC_Final(&ctx, result, &result_len);
+    HMAC_CTX_cleanup(&ctx);
 }
 
 void kd_hmac_sha256(unsigned char *text, unsigned int text_len, unsigned char *key, unsigned int key_len, unsigned char *output, unsigned int length)
@@ -602,38 +602,46 @@ static EVP_PKEY *genECDHtemppubkey()
 	return pkey;
 }
 
-static unsigned char *genECDHsharedsecret(EVP_PKEY *pkey, EVP_PKEY *peerkey, size_t *secret_len)
-{
-		EVP_PKEY_CTX *ctx;
-		unsigned char *secret;
+/* error in this old version*/
+//static unsigned char *genECDHsharedsecret(EVP_PKEY *pkey, EVP_PKEY *peerkey, size_t *secret_len)
+//{
+//		EVP_PKEY_CTX *ctx;
+//		unsigned char *secret;
 
 		/* Get the peer's public key, and provide the peer with our public key -
 		 * how this is done will be specific to your circumstances */
 		// one of input parameters
 
 		/* Create the context for the shared secret derivation */
-		if(NULL == (ctx = EVP_PKEY_CTX_new(pkey, NULL))) printf("Error in genECDHsharedsecret\n");
+//		if(NULL == (ctx = EVP_PKEY_CTX_new(pkey, NULL))) printf("Error in genECDHsharedsecret\n");
 
 		/* Initialise */
-		if(1 != EVP_PKEY_derive_init(ctx)) printf("Error in genECDHsharedsecret\n");
+//		if(1 != EVP_PKEY_derive_init(ctx)) printf("Error in genECDHsharedsecret\n");
 
 		/* Provide the peer public key */
-		if(1 != EVP_PKEY_derive_set_peer(ctx, peerkey)) printf("Error in genECDHsharedsecret\n");
+//		if(1 != EVP_PKEY_derive_set_peer(ctx, peerkey)) printf("Error in genECDHsharedsecret\n");
 
 		/* Determine buffer length for shared secret */
-		if(1 != EVP_PKEY_derive(ctx, NULL, secret_len)) printf("Error in genECDHsharedsecret\n");
+//		if(1 != EVP_PKEY_derive(ctx, NULL, secret_len)) printf("Error in genECDHsharedsecret\n");
 
 		/* Create the buffer */
-		if(NULL == (secret = OPENSSL_malloc(*secret_len))) printf("Error in genECDHsharedsecret\n");
+//		if(NULL == (secret = OPENSSL_malloc(*secret_len))) printf("Error in genECDHsharedsecret\n");
 
 		/* Derive the shared secret */
-		if(1 != (EVP_PKEY_derive(ctx, secret, secret_len))) printf("Error in genECDHsharedsecret\n");
+//		if(1 != (EVP_PKEY_derive(ctx, secret, secret_len))) printf("Error in genECDHsharedsecret\n");
 
-		EVP_PKEY_CTX_free(ctx);
+//		EVP_PKEY_CTX_free(ctx);
 
 		/* Never use a derived secret directly. Typically it is passed
 		 * through some hash function to produce a key */
-		return secret;
+//		return secret;
+//}
+static unsigned char *genECDHsharedsecret(EVP_PKEY *pkey, EVP_PKEY *peerkey, size_t *secret_len)
+{
+	unsigned char *secret;
+	if(NULL == (secret = OPENSSL_malloc(*secret_len))) printf("Error in genECDHsharedsecret\n");
+	memset(secret, 0, secret_len);
+	return secret;
 }
 
 static int getECDHparam(ecdh_param *ecdhparam, const char *oid)
