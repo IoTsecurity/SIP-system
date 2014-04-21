@@ -1119,14 +1119,6 @@ int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_a
 		 * temporary key for ECDH
 		 */
 		memcpy(&rc->keydata, genECDHtemppubkey(), sizeof(rc->keydata));
-		char *p;
-		p=(char *)(&rc->keydata);
-		int i;
-		printf("---------------rc->keydata:\n");
-		for(i=0;i<32;i++)
-		{
-			printf("%2x ",p[i]);
-		}printf("\n");
 		memcpy(&access_auth_requ_packet->asuekeydata, &rc->keydata, sizeof(access_auth_requ_packet->asuekeydata));
 
 		//fill ae rand number, same as auth active packet
