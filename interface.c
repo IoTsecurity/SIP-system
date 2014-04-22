@@ -1494,12 +1494,12 @@ int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
 
 	char *tempstring = "masterkeyexpansionforkeyandadditionalnonce";
 	int outputlen = sizeof(Keybox.keyrings[0].MasterKey) + sizeof(rc->auth_id_next);
-	int textlen = sizeof(access_auth_requ_packet->aechallenge) +
-			sizeof(access_auth_requ_packet->asuechallenge) +
-			strlen(tempstring);
+	int textlen = 2*RAND_LEN + strlen(tempstring);
 	unsigned char *output = malloc(outputlen);
 	unsigned char *text = malloc(textlen);
-
+	memcpy(text, access_auth_requ_packet->aechallenge, RAND_LEN);
+	memcpy(text+RAND_LEN, access_auth_requ_packet->asuechallenge, RAND_LEN);
+	memcpy(text+2*RAND_LEN, tempstring, strlen(tempstring));
 	kd_hmac_sha256(text, textlen, ECDH_keydata, KEY_LEN, output, outputlen);
 
 	int i;
@@ -1660,11 +1660,12 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 
 		char *tempstring = "masterkeyexpansionforkeyandadditionalnonce";
 		int outputlen = sizeof(Keybox.keyrings[0].MasterKey) + sizeof(rc->auth_id_next);
-		int textlen = sizeof(access_auth_requ_packet->aechallenge) +
-				sizeof(access_auth_requ_packet->asuechallenge) +
-				strlen(tempstring);
+		int textlen = 2*RAND_LEN + strlen(tempstring);
 		unsigned char *output = malloc(outputlen);
 		unsigned char *text = malloc(textlen);
+		memcpy(text, access_auth_requ_packet->aechallenge, RAND_LEN);
+		memcpy(text+RAND_LEN, access_auth_requ_packet->asuechallenge, RAND_LEN);
+		memcpy(text+2*RAND_LEN, tempstring, strlen(tempstring));
 		kd_hmac_sha256(text, textlen, ECDH_keydata, KEY_LEN, output, outputlen);
 
 		int i;
