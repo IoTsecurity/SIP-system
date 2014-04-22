@@ -69,7 +69,7 @@ int main(int argc,char *argv[])
 					default_invite=(char *)malloc(sizeof(char)* 100);
 					get_conf_value("default_invite",default_invite,device_info.cfgFile);
 					//printf("default_invite:%s\n",default_invite);
-					uac_invite(&inviteId,default_invite,//"34020000001310000051@192.168.17.1:5060",
+					uac_invite(&inviteId,default_invite,//"34020000001310000051@192.168.17.1:5060",---
 							send_sdp_data,recieve_sdp_data);
 					uac_handle_Playsdp(recieve_sdp_data);
 					//uac_receive_Playmedia();
