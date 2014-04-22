@@ -256,9 +256,8 @@ int uac_register()
 			else if (EXOSIP_REGISTRATION_SUCCESS == je->type)
 			{
 				/*---------step 6-------------收到服务器返回的注册成功--------------------------------*/
-				printf("<EXOSIP_REGISTRATION_SUCCESS>\r\n");
-				g_register_id = je->rid;/*保存注册成功的注册ID*/
-				printf("g_register_id=%d\r\n", g_register_id);
+
+
 				AccessAuthResp * access_auth_resp_data;
 				osip_body_t *body;
 				osip_message_get_body (je->response, 0, &body);
@@ -272,6 +271,9 @@ int uac_register()
 					return 0;
 				}
 
+				g_register_id = je->rid;/*保存注册成功的注册ID*/
+				printf("g_register_id=%d\r\n", g_register_id);
+				printf("<EXOSIP_REGISTRATION_SUCCESS>\r\n");
 				/*
 				//send key agreement package  发送密钥协商包
 				osip_message_t * inforequest;
