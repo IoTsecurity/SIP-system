@@ -1907,6 +1907,9 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 		return FALSE;
 	}
 
+	// get asue rand number
+	memcpy(rc->peer_randnum_next, (BYTE *)&unicast_key_nego_resp_packet->asuechallenge, sizeof(rc->self_randnum_next));
+
 	// compute key block
 	/*
 	 * KeyBlock = KD-HMAC-SHA256(MasterKey, MAC_SIPUA || MAC_SIPServer ||
@@ -1971,9 +1974,6 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 	// Dec(CK, RTP_send || RTCP_send || RTP_receive || RTCP_receive)
 	rc->peer_ports = unicast_key_nego_resp_packet->myports;
 	//printf("[wait for sm1] rtp rtcp info is not decrypted !\n");
-
-	// get asue rand number
-	memcpy(rc->peer_randnum_next, (BYTE *)&unicast_key_nego_resp_packet->asuechallenge, sizeof(rc->self_randnum_next));
 
 	return TRUE;
 }
