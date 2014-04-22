@@ -505,13 +505,16 @@ BOOL verify_sign(BYTE *input,int sign_input_len,BYTE * sign_value, unsigned int 
 // Return 32Byte digest
 void hmac_sha256(unsigned char *data, unsigned int data_len, unsigned char *key, unsigned int key_len, unsigned char* result, unsigned int result_len)
 {
+	unsigned char resultlocal[SHA256_DIGEST_SIZE];
+	unsigned int resultlen=result_len;
 	HMAC_CTX ctx;
 	HMAC_CTX_init(&ctx);
     //HMAC_Init_ex(&ctx, key, 16, EVP_sha256(), NULL);
 	HMAC_Init_ex(&ctx, key, key_len, EVP_sha256(), NULL);
     //HMAC_Update(&ctx, data, 8);
 	HMAC_Update(&ctx, data, data_len);
-    HMAC_Final(&ctx, result, &result_len);
+    HMAC_Final(&ctx, resultlocal, &result_len);
+    memcpy(result, resultlocal, resultlen);
     HMAC_CTX_cleanup(&ctx);
 }
 
@@ -640,7 +643,7 @@ static unsigned char *genECDHsharedsecret(EVP_PKEY *pkey, EVP_PKEY *peerkey, siz
 {
 	unsigned char *secret;
 	if(NULL == (secret = OPENSSL_malloc(*secret_len))) printf("Error in genECDHsharedsecret\n");
-	memset(secret, 0, secret_len);
+	memset(secret, 0, *secret_len);
 	return secret;
 }
 
