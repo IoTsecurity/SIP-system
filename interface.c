@@ -2348,6 +2348,9 @@ int HandleP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token)
 		return FALSE;
 	}
 
+	// get randnum
+	memcpy(cc->peer_randnum, p2p_auth_token->randnum, RAND_LEN);
+
 	// compute reauth_IK_IPC_NVR
 	/*
 	 * reauth_IK_IPC_NVR = KD-HMAC-SHA256(IK, MAC_IPC || MAC_NVR ||
