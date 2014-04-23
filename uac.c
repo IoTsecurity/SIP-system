@@ -19,6 +19,8 @@
 #include "uac.h"
 #include "time.h"
 
+#define CONTENT_TYPE "text/code"
+
 int uac_init()
 {
 	user_type=0;
@@ -257,7 +259,6 @@ int uac_register()
 			{
 				/*---------step 6-------------收到服务器返回的注册成功--------------------------------*/
 
-
 				AccessAuthResp * access_auth_resp_data;
 				osip_body_t *body;
 				osip_message_get_body (je->response, 0, &body);
@@ -414,7 +415,7 @@ int uac_key_nego()
 	sprintf(target.username, "%s", device_info.ipc_id);
 
 	alter_message invite_message;
-	invite_message.body="this is no KEY_NAGO1 message";
+	invite_message.body="this is KEY_NAGO1 message";
 	invite_message.content_type="text/code";
 	invite_message.subject="KEY_NAGO1\n";
 	uac_sendInvite(&id,&target,&invite_message);
@@ -456,6 +457,26 @@ int uac_key_nego()
 	if(!strcmp(subject->hvalue,"KEY_NAGO2"))
 	{
 		//do something handle the KEY_NAGO2
+		osip_body_t *body;
+		osip_message_get_body (g_event->response, 0, &body);
+		UnicastKeyNegoRequ *unicast_key_nego_requ_packet_c=(UnicastKeyNegoRequ*)malloc (sizeof(UnicastKeyNegoRequ)*2);
+		if(body->length < sizeof(UnicastKeyNegoRequ)*2)
+		{
+			printf("not valid length");
+			free(unicast_key_nego_requ_packet_c);
+			return 0;
+		}
+		memcpy(unicast_key_nego_requ_packet_c,body->body, body->length);
+		free(body);
+		decodeFromChar(unicast_key_nego_requ_packet_c,sizeof(UnicastKeyNegoRequ)*2);
+
+		if(HandleUnicastKeyNegoRequest(RegisterCon, unicast_key_nego_requ_packet_c)<1)
+		{
+			printf("HandleUnicastKeyNegoRequest error\n");
+			free(unicast_key_nego_requ_packet_c);
+			return 0;
+		}
+
 		id.cid=g_event->cid;
 		id.did=g_event->did;
 		osip_message_t *ack = NULL;
@@ -463,6 +484,7 @@ int uac_key_nego()
 		//eXosip_call_build_ack (id.did, &ack);
 		//eXosip_call_send_ack (id.cid, ack);
 		printf("KEY_NAGO2 success\n");
+		free(unicast_key_nego_requ_packet_c);
 		eXosip_event_free (g_event);
 	}
 	else
@@ -475,9 +497,18 @@ int uac_key_nego()
 	}
 	g_event=NULL;
 
+	UnicastKeyNegoResp *unicast_key_nego_resp_packet_c=(UnicastKeyNegoResp*)malloc (sizeof(UnicastKeyNegoResp)*2);
+	if(ProcessUnicastKeyNegoResponse(RegisterCon, unicast_key_nego_resp_packet_c)<1)
+	{
+		printf("ProcessUnicastKeyNegoResponse error\n");
+		free(unicast_key_nego_resp_packet_c);
+		return 0;
+	}
+	codeToChar(unicast_key_nego_resp_packet_c,sizeof(UnicastKeyNegoResp)*2);
+
 	//key_nego 3
 	alter_message key_nego_message;
-	key_nego_message.body="this is no KEY_NAGO3 message";
+	key_nego_message.body=unicast_key_nego_resp_packet_c;
 	key_nego_message.method_type="MESSAGE";
 	key_nego_message.content_type="text/code";
 	key_nego_message.subject="KEY_NAGO3";
@@ -485,8 +516,10 @@ int uac_key_nego()
 	if(uac_send_message(id,&key_nego_message)!=0)
 	{
 		printf("uac_send_message error\n");
+		free(unicast_key_nego_resp_packet_c);
 		return 0;
 	}
+	free(unicast_key_nego_resp_packet_c);
 	if(!uac_waitfor(&id,EXOSIP_CALL_MESSAGE_ANSWERED,&g_event))
 	{
 		printf("g_event->type:%d\n",g_event->type);
@@ -504,6 +537,26 @@ int uac_key_nego()
 	if(!strcmp(subject->hvalue,"KEY_NAGO4"))
 	{
 		//do something handle the KEY_NAGO 4
+		osip_body_t *body;
+		osip_message_get_body (g_event->response, 0, &body);
+		UnicastKeyNegoConfirm *unicast_key_nego_confirm_packet_c=(UnicastKeyNegoConfirm*)malloc (sizeof(UnicastKeyNegoConfirm)*2);
+		if(body->length < sizeof(UnicastKeyNegoConfirm)*2)
+		{
+			printf("not valid length");
+			free(unicast_key_nego_confirm_packet_c);
+			return 0;
+		}
+		memcpy(unicast_key_nego_confirm_packet_c,body->body, body->length);
+		free(body);
+		decodeFromChar(unicast_key_nego_confirm_packet_c,sizeof(UnicastKeyNegoConfirm)*2);
+
+		if(HandleUnicastKeyNegoConfirm(RegisterCon, unicast_key_nego_confirm_packet_c)<1)
+		{
+			printf("HandleUnicastKeyNegoConfirm error\n");
+			free(unicast_key_nego_confirm_packet_c);
+			return 0;
+		}
+
 		printf("KEY_NAGO4 sucess\n");
 		eXosip_event_free (g_event);
 		uac_bye(id);
