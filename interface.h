@@ -296,6 +296,8 @@ typedef struct Ports{
 	int rtcp_recv;
 }Ports;
 
+#define ECDH_SIZE 33
+
 typedef struct RegisterContext{
 	char radius_id[MAXIDSTRING];
 
@@ -310,10 +312,11 @@ typedef struct RegisterContext{
 	//enum DeviceType peer_type;
 
 	// used in register part
-	EVP_PKEY keydata;
+	unsigned char keydata[ECDH_SIZE];
 	unsigned char auth_id_next[SHA256_DIGEST_SIZE]; // for re-authentiation
 
 	// used in key negotiation part
+	EC_KEY *ecdh;
 	unsigned char MK_ID[SHA256_DIGEST_SIZE];
 	unsigned char self_randnum_next[RAND_LEN];
 	unsigned char peer_randnum_next[RAND_LEN];
@@ -347,7 +350,7 @@ typedef struct _access_auth_requ
     BYTE             flag;                                        /* 标志 */
     BYTE             authidentify[RAND_LEN];                      /* 鉴别标识 */
     BYTE             asuechallenge[RAND_LEN];                     /* ASUE挑战 */
-    EVP_PKEY         asuekeydata;                                 /* ASUE密钥数据 */
+    BYTE         	 asuekeydata[ECDH_SIZE];                                 /* ASUE密钥数据 */
 	BYTE			 aechallenge[RAND_LEN];
     identity         staaeidentity;                             /* STAae的身份 */
     ecdh_param       ecdhparam;                                   /* ECDH参数 */
@@ -401,7 +404,7 @@ typedef struct _access_auth_resp
 	BYTE           				 authidentify[RAND_LEN];          /* 鉴别标识 */
     BYTE                         asuechallenge[RAND_LEN];         /* ASUE挑战 */
     BYTE                         aechallenge[RAND_LEN];           /* AE挑战 */
-	EVP_PKEY                    aekeydata;                       /* AE密钥数据 */
+	BYTE                    	 aekeydata[ECDH_SIZE];                       /* AE密钥数据 */
 	BYTE						 accessresult;					  /* 接入结果 */
 	certificate_valid_result_complex   cervalrescomplex;                /* 复合证书验证结果 */
     sign_attribute               aesign;                          /* AE的签名 */
