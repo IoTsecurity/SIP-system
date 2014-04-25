@@ -283,5 +283,13 @@ int mac_stox(char *x,char * s)
 	return 1;
 }
 
-
+int printfx(unsigned char *p, int len)
+{
+	int i;
+	for(i=0;i<len;i++)
+	{
+		printf("%2x ",p[i]);
+	}printf("\n");
+	return 1;
+	}
 

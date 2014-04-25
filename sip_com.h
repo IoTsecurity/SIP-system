@@ -38,6 +38,6 @@ int getNetInfo(char* outip,char *outmac);
 /* mac地址 从字符串类型转化为16进制类型 */
 int mac_stox(char *x,char * s);
 
-
+int printfx(unsigned char *p, int len);
 
 #endif /* SIP_COM_H_ */
