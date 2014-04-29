@@ -223,7 +223,7 @@ int uac_register()
 
 					memset(auth_request_packet_data,0, sizeof(AccessAuthRequ)*2);
 
-					if(!ProcessWAPIProtocolAccessAuthRequest(RegisterCon,auth_active_packet_data,auth_request_packet_data))
+					if(ProcessWAPIProtocolAccessAuthRequest(RegisterCon,auth_active_packet_data,auth_request_packet_data)<1)
 					{
 						printf("ProcessWAPIProtocolAccessAuthRequest error\n");
 						return 0;
@@ -458,7 +458,7 @@ int uac_key_nego()
 	{
 		//do something handle the KEY_NAGO2
 		osip_body_t *body;
-		osip_message_get_body (g_event->response, 0, &body);
+		osip_message_get_body (g_event->response, 0, &body);//body
 		UnicastKeyNegoRequ *unicast_key_nego_requ_packet_c=(UnicastKeyNegoRequ*)malloc (sizeof(UnicastKeyNegoRequ)*2);
 		if(body->length < sizeof(UnicastKeyNegoRequ)*2)
 		{
@@ -467,7 +467,6 @@ int uac_key_nego()
 			return 0;
 		}
 		memcpy(unicast_key_nego_requ_packet_c,body->body, body->length);
-		free(body);
 		decodeFromChar(unicast_key_nego_requ_packet_c,sizeof(UnicastKeyNegoRequ)*2);
 
 		if(HandleUnicastKeyNegoRequest(RegisterCon, unicast_key_nego_requ_packet_c)<1)
@@ -485,7 +484,9 @@ int uac_key_nego()
 		//eXosip_call_send_ack (id.cid, ack);
 		printf("KEY_NAGO2 success\n");
 		free(unicast_key_nego_requ_packet_c);
+		printf("1\n");
 		eXosip_event_free (g_event);
+		printf("2\n");
 	}
 	else
 	{
@@ -496,7 +497,7 @@ int uac_key_nego()
 
 	}
 	g_event=NULL;
-
+printf("before ProcessUnicastKeyNegoResponse\n");
 	UnicastKeyNegoResp *unicast_key_nego_resp_packet_c=(UnicastKeyNegoResp*)malloc (sizeof(UnicastKeyNegoResp)*2);
 	if(ProcessUnicastKeyNegoResponse(RegisterCon, unicast_key_nego_resp_packet_c)<1)
 	{
@@ -547,7 +548,7 @@ int uac_key_nego()
 			return 0;
 		}
 		memcpy(unicast_key_nego_confirm_packet_c,body->body, body->length);
-		free(body);
+		//free(body);
 		decodeFromChar(unicast_key_nego_confirm_packet_c,sizeof(UnicastKeyNegoConfirm)*2);
 
 		if(HandleUnicastKeyNegoConfirm(RegisterCon, unicast_key_nego_confirm_packet_c)<1)
@@ -557,10 +558,11 @@ int uac_key_nego()
 			return 0;
 		}
 
-		printf("KEY_NAGO4 sucess\n");
+		printf("KEY_NAGO4 success\n");
+		free(unicast_key_nego_confirm_packet_c);
 		eXosip_event_free (g_event);
 		uac_bye(id);
-		return 0;
+		return 1;
 	}
 	else
 	{
