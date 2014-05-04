@@ -14,19 +14,14 @@
 
 //#define DATA_LEN 4096
 
-int user_type;
-int call_type;
-int invite_user_type;
-int invite_type;
-
 extern int user_type;
 extern int call_type;
 extern int invite_user_type;
 extern int invite_type;
 
-#define USER_TYPE_IPC 		1
-#define USER_TYPE_CLIENT 		2
-#define USER_TYPE_NVR 		3
+#define USER_TYPE_IPC 		IPC
+#define USER_TYPE_CLIENT 		Client
+#define USER_TYPE_NVR 		NVR
 
 
 #define CALL_TYPE_PLAY 		1

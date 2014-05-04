@@ -23,6 +23,12 @@
 #include "dispatch.h"
 #include "interface.h"
 #include "sip_com.h"
+
+int user_type;
+int call_type;
+int invite_user_type;
+int invite_type;
+
 /*
 int interface_init()
 {

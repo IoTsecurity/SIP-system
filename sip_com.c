@@ -293,3 +293,74 @@ int printfx(unsigned char *p, int len)
 	return 1;
 	}
 
+int P2PCommContext_Conversion(P2PLinkContext *lc,P2PCommContext *cc)
+{
+	memcpy(cc->self_id,lc->self_id,MAXIDSTRING);
+	memcpy(&cc->self_MACaddr,&lc->self_MACaddr,sizeof(cc->self_MACaddr));
+
+	memcpy(cc->peer_id,lc->target_id,MAXIDSTRING);
+	cc->peer_type=lc->target_type;
+	memcpy(&cc->peer_MACaddr,&lc->target_MACaddr,sizeof(cc->peer_MACaddr));
+
+	return 1;
+}
+
+int P2PLinkContext_Conversion_C(RegisterContext *rc, P2PLinkContext *lc, enum DeviceType target_type)
+{
+	memcpy(lc->self_id,rc->self_id,MAXIDSTRING);
+	memcpy(lc->self_MACaddr.macaddr,rc->self_MACaddr.macaddr,sizeof(lc->self_MACaddr.macaddr));
+
+	memcpy(lc->peer_id,rc->peer_id,MAXIDSTRING);
+	lc->peer_type=SIPserver;
+	memcpy(lc->peer_MACaddr.macaddr,rc->peer_MACaddr.macaddr,sizeof(lc->peer_MACaddr.macaddr));
+	memcpy(lc->peer_ip,rc->peer_ip,MAXIDSTRING);
+
+	lc->target_ports.rtp_send=0;
+	lc->target_ports.rtcp_send=0;
+	lc->target_ports.rtp_recv=0;
+	lc->target_ports.rtcp_recv=0;
+
+	lc->target_type=target_type;
+
+	return 1;
+	}
+
+int P2PLinkContext_Conversion_S(RegisterContext *rc_IPC, RegisterContext *rc_NVR, P2PLinkContext *lc_to_IPC, P2PLinkContext *lc_to_NVR)
+{
+	memcpy(lc_to_IPC->self_id,rc_IPC->self_id,MAXIDSTRING);
+	memcpy(lc_to_IPC->self_MACaddr.macaddr,rc_IPC->self_MACaddr.macaddr,sizeof(lc_to_IPC->self_MACaddr.macaddr));
+
+	memcpy(lc_to_IPC->peer_id,rc_IPC->peer_id,MAXIDSTRING);
+	lc_to_IPC->peer_type=IPC;
+	memcpy(lc_to_IPC->peer_MACaddr.macaddr,rc_IPC->peer_MACaddr.macaddr,sizeof(lc_to_IPC->peer_MACaddr.macaddr));
+	memcpy(lc_to_IPC->peer_ip,rc_IPC->peer_ip,MAXIDSTRING);
+
+	memcpy(lc_to_IPC->target_id,rc_NVR->peer_id,MAXIDSTRING);
+	lc_to_IPC->target_type=NVR;
+	memcpy(lc_to_IPC->target_MACaddr.macaddr,rc_NVR->peer_MACaddr.macaddr,sizeof(lc_to_IPC->target_MACaddr.macaddr));
+	memcpy(lc_to_IPC->target_ip,rc_NVR->peer_ip,MAXIDSTRING);
+	lc_to_IPC->target_ports.rtp_send=0;
+	lc_to_IPC->target_ports.rtcp_send=0;
+	lc_to_IPC->target_ports.rtp_recv=0;
+	lc_to_IPC->target_ports.rtcp_recv=0;
+
+	memcpy(lc_to_NVR->self_id,rc_NVR->self_id,MAXIDSTRING);
+	memcpy(lc_to_NVR->self_MACaddr.macaddr,rc_NVR->self_MACaddr.macaddr,sizeof(lc_to_NVR->self_MACaddr.macaddr));
+
+	memcpy(lc_to_NVR->peer_id,rc_NVR->peer_id,MAXIDSTRING);
+	lc_to_NVR->peer_type=NVR;
+	memcpy(lc_to_NVR->peer_MACaddr.macaddr,rc_NVR->peer_MACaddr.macaddr,sizeof(lc_to_NVR->peer_MACaddr.macaddr));
+	memcpy(lc_to_NVR->peer_ip,rc_NVR->peer_ip,MAXIDSTRING);
+
+	memcpy(lc_to_NVR->target_id,rc_IPC->peer_id,MAXIDSTRING);
+	lc_to_NVR->target_type=IPC;
+	memcpy(lc_to_NVR->target_MACaddr.macaddr,rc_IPC->peer_MACaddr.macaddr,sizeof(lc_to_NVR->target_MACaddr.macaddr));
+	memcpy(lc_to_NVR->target_ip,rc_IPC->peer_ip,MAXIDSTRING);
+
+	lc_to_NVR->target_ports.rtp_send=0;
+	lc_to_NVR->target_ports.rtcp_send=0;
+	lc_to_NVR->target_ports.rtp_recv=0;
+	lc_to_NVR->target_ports.rtcp_recv=0;
+
+	return 1;
+	}

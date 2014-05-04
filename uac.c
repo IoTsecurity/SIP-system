@@ -106,8 +106,12 @@ int uac_register()
 		g_register_id = eXosip_register_build_initial_register(from, proxy, NULL, expires, &reg);
 		char mac[12];
 		memset(mac,0,12);
-		getNetInfo(NULL,mac);//printf("mac:%02x %02x %02x %02x %02x %02x",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+		memcpy(mac,RegisterCon->self_MACaddr.macaddr,sizeof(RegisterCon->self_MACaddr.macaddr));
+		//getNetInfo(NULL,mac);//printf("mac:%02x %02x %02x %02x %02x %02x",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+
 		codeToChar(mac,sizeof(mac));
+		printf("mac:\n");
+		printfx(mac,sizeof(mac));
 		char mac_subject[20];
 		sprintf(mac_subject,"MAC:%s\n",mac);
 		osip_message_set_subject(reg,mac_subject);
@@ -212,7 +216,7 @@ int uac_register()
 					eXosip_add_authentication_info(device_info.ipc_id, device_info.ipc_id, device_info.ipc_pwd, "MD5", NULL);/*添加主叫用户的认证信息*/
 					eXosip_register_build_register(je->rid, expires, &reg);
 
-					if(!auth_request_packet_data)
+					if(auth_request_packet_data!=NULL)
 					{
 
 						free(auth_request_packet_data);
@@ -247,6 +251,7 @@ int uac_register()
 						return -1;
 					}
 					printf("eXosip_register_send_register authorization success!\r\n");
+					eXosip_event_free (je);
 				}
 				else/*真正的注册失败*/
 				{
@@ -283,7 +288,7 @@ int uac_register()
 				ret=eXosip_message_send_request(inforequest);
 
 				*/
-
+				eXosip_event_free (je);
 				break;
 			}
 
@@ -329,7 +334,6 @@ int uac_bye(sessionId inviteId)
 	{
 		printf("no bye response\n");
 	}
-
 	eXosip_event_free (g_event);
 	return 1;
 	}
@@ -484,9 +488,7 @@ int uac_key_nego()
 		//eXosip_call_send_ack (id.cid, ack);
 		printf("KEY_NAGO2 success\n");
 		free(unicast_key_nego_requ_packet_c);
-		printf("1\n");
 		eXosip_event_free (g_event);
-		printf("2\n");
 	}
 	else
 	{
@@ -497,7 +499,6 @@ int uac_key_nego()
 
 	}
 	g_event=NULL;
-printf("before ProcessUnicastKeyNegoResponse\n");
 	UnicastKeyNegoResp *unicast_key_nego_resp_packet_c=(UnicastKeyNegoResp*)malloc (sizeof(UnicastKeyNegoResp)*2);
 	if(ProcessUnicastKeyNegoResponse(RegisterCon, unicast_key_nego_resp_packet_c)<1)
 	{
@@ -547,7 +548,9 @@ printf("before ProcessUnicastKeyNegoResponse\n");
 			free(unicast_key_nego_confirm_packet_c);
 			return 0;
 		}
-		memcpy(unicast_key_nego_confirm_packet_c,body->body, body->length);
+		printf("body->length:%d",body->length);
+		printf("sizeof(UnicastKeyNegoConfirm)*2:%d",sizeof(UnicastKeyNegoConfirm)*2);
+		memcpy(unicast_key_nego_confirm_packet_c,body->body, sizeof(UnicastKeyNegoConfirm)*2);
 		//free(body);
 		decodeFromChar(unicast_key_nego_confirm_packet_c,sizeof(UnicastKeyNegoConfirm)*2);
 
@@ -639,7 +642,45 @@ int uac_key_distribute()
 	printf("subject->hvalue:%s\n",subject->hvalue);
 	if(!strcmp(subject->hvalue,"KEY_DISTRIBUTE2"))
 	{
+		osip_body_t *body;
+		osip_message_get_body (g_event->response, 0, &body);
+		P2PKeyDistribution *p2p_key_dist_packet_in_IPC=(P2PKeyDistribution *)malloc(sizeof(P2PKeyDistribution)*2);
+		if(body->length < sizeof(P2PKeyDistribution)*2)
+		{
+			printf("not valid length");
+			free(p2p_key_dist_packet_in_IPC);
+			return 0;
+		}
+		printf("body->length:%d",body->length);
+		printf("sizeof(P2PKeyDistribution)*2:%d",sizeof(P2PKeyDistribution)*2);
+		memcpy(p2p_key_dist_packet_in_IPC,body->body, sizeof(P2PKeyDistribution)*2);
+		//free(body);
+		decodeFromChar(p2p_key_dist_packet_in_IPC,sizeof(P2PKeyDistribution)*2);
+
 		//do something handle the KEY_DISTRIBUTE2
+
+		P2PLinkContext *lc_in_IPC=(P2PLinkContext *)malloc(sizeof(P2PLinkContext));
+
+		// 需要改进，因为可能是Client于NVR进行通信
+		if(user_type==IPC)
+		{printf("IPC\n");
+			P2PLinkContext_Conversion_C(RegisterCon, lc_in_IPC, NVR);
+		}
+		else if(user_type==NVR)
+		{printf("NVR\n");
+			P2PLinkContext_Conversion_C(RegisterCon, lc_in_IPC, IPC);
+		}
+		else
+			printf("user_type:%d",user_type);
+
+printf("lc->peer_id:%s",lc_in_IPC->peer_id);
+		if(HandleP2PKeyDistribution(lc_in_IPC, p2p_key_dist_packet_in_IPC)<1)
+		{
+			printf("HandleP2PKeyDistribution error\n");
+			return 0;
+		}
+
+
 		id.cid=g_event->cid;
 		id.did=g_event->did;
 		osip_message_t *ack = NULL;
@@ -663,7 +704,6 @@ int uac_key_distribute()
 int uac_waitfor(sessionId* id, eXosip_event_type_t t,eXosip_event_t **event)
 {
 	eXosip_event_t *g_event  = NULL;/*消息事件*/
-
 	while(1)
 	{
 	/*等待新消息的到来*/
@@ -672,19 +712,20 @@ int uac_waitfor(sessionId* id, eXosip_event_type_t t,eXosip_event_t **event)
 		eXosip_default_action(g_event);
 		eXosip_automatic_refresh();/*Refresh REGISTER and SUBSCRIBE before the expiration delay*/
 		eXosip_unlock();
-		if (NULL == g_event)
+		if ( g_event == NULL)
 		{
+			printf("NULL == g_event\n");
 			continue;
 		}
 		if(g_event->request==NULL)
 		{
+			printf("g_event->request==NULL\n");
 			continue;
 		}
-		//printf("id.call_id:%s\n",id.call_id);
-		//printf("g_event->request->call_id->number:%s\n",g_event->request->call_id->number);
+
 		if(id!=NULL && strcmp(id->call_id,g_event->request->call_id->number))
 		{
-			//printf("enter0\n");
+			printf("id!=NULL &&\n");
 			continue;
 		}
 		if(g_event->type==EXOSIP_CALL_RINGING)

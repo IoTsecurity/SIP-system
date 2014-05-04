@@ -38,6 +38,15 @@ int getNetInfo(char* outip,char *outmac);
 /* mac地址 从字符串类型转化为16进制类型 */
 int mac_stox(char *x,char * s);
 
+int printfx_s(unsigned char *p, int len);
+
 int printfx(unsigned char *p, int len);
+
+int P2PCommContext_Conversion(P2PLinkContext *lc,P2PCommContext *cc);
+
+int P2PLinkContext_Conversion_C(RegisterContext *rc, P2PLinkContext *lc, enum DeviceType target_type);
+
+int P2PLinkContext_Conversion_S(RegisterContext *rc_IPC, RegisterContext *rc_NVR,
+		P2PLinkContext *lc_to_IPC, P2PLinkContext *lc_to_NVR);
 
 #endif /* SIP_COM_H_ */
