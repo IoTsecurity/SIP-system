@@ -160,12 +160,17 @@ static int getSecureLinkNum(const SecureLinks *securelinks, const char *id)
 	return -1;
 }
 
-static void disp(char *str, void *pbuf,int size)
+static void disp(const char *str, const void *pbuf, const int size)
 {
 	int i=0;
-	printf("%s:\n", str);
-	for(i=0;i<size;i++)
-		printf("%02x ",*((unsigned char *)pbuf+i));
+	if(str != NULL){
+		printf("%s:\n", str);
+	}
+	if(pbuf != NULL && size > 0){
+		for(i=0;i<size;i++)
+			printf("%02x ", *((unsigned char *)pbuf+i));
+		putchar('\n');
+	}
 	putchar('\n');
 }
 
@@ -1490,9 +1495,14 @@ int ProcessWAPIProtocolAccessAuthResp(RegisterContext *rc,
 		}
 	}
 
+	/* checkpoint */
+	//disp("ECDH_keydata", ECDH_keydata, secretlen);
 	memcpy(Keybox.keyrings[i].MasterKey, output, sizeof(Keybox.keyrings[i].MasterKey));
 	SHA256(output+sizeof(Keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
+	//disp("Keybox.keyrings[i].MasterKey", Keybox.keyrings[i].MasterKey, sizeof(Keybox.keyrings[i].MasterKey));
+	//disp("rc->auth_id_next", rc->auth_id_next, sizeof(rc->auth_id_next));
 
+	free(ECDH_keydata);
 	free(output);
 	free(text);
 
@@ -1657,8 +1667,14 @@ int HandleWAPIProtocolAccessAuthResp(RegisterContext *rc, AccessAuthRequ *access
 			}
 		}
 
+		/* checkpoint */
+		//disp("ECDH_keydata", ECDH_keydata, secretlen);
 		memcpy(Keybox.keyrings[i].MasterKey, output, sizeof(Keybox.keyrings[i].MasterKey));
 		SHA256(output+sizeof(Keybox.keyrings[i].MasterKey), sizeof(rc->auth_id_next), rc->auth_id_next);
+		//disp("Keybox.keyrings[i].MasterKey", Keybox.keyrings[i].MasterKey, sizeof(Keybox.keyrings[i].MasterKey));
+		//disp("rc->auth_id_next", rc->auth_id_next, sizeof(rc->auth_id_next));
+
+		free(ECDH_keydata);
 		free(output);
 		free(text);
 
@@ -1817,6 +1833,7 @@ int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unica
 			KEY_LEN, output, outputlen);
 
 	if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
+		// No such key ring, create one
 		if(Keybox.nkeys >= MAXKEYRINGS-1){
 			printf("Key rings is full!\n");
 			return FALSE;
@@ -1827,6 +1844,8 @@ int ProcessUnicastKeyNegoResponse(RegisterContext *rc, UnicastKeyNegoResp *unica
 		}
 	}
 
+	/* checkpoint */
+	//disp("keyblock", output, outputlen);
 	memcpy(Keybox.keyrings[i].CK, output, KEY_LEN);
 	memcpy(Keybox.keyrings[i].IK, output+KEY_LEN, KEY_LEN);
 	memcpy(Keybox.keyrings[i].KEK, output+2*KEY_LEN, KEY_LEN);
@@ -1913,6 +1932,7 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 			KEY_LEN, output, outputlen);
 
 	if( (i=getKeyRingNum(&Keybox, rc->peer_id)) < 0 ){
+		// No such key ring, create one
 		if(Keybox.nkeys >= MAXKEYRINGS-1){
 			printf("Key rings is full!\n");
 			return FALSE;
@@ -1923,6 +1943,8 @@ int HandleUnicastKeyNegoResponse(RegisterContext *rc, const UnicastKeyNegoResp *
 		}
 	}
 
+	/* checkpoint */
+	//disp("keyblock", output, outputlen);
 	memcpy(Keybox.keyrings[i].CK, output, KEY_LEN);
 	memcpy(Keybox.keyrings[i].IK, output+KEY_LEN, KEY_LEN);
 	memcpy(Keybox.keyrings[i].KEK, output+2*KEY_LEN, KEY_LEN);
@@ -2708,6 +2730,9 @@ int HandleP2PByeLinkToken(P2PCommContext *cc, P2PAuthToken *p2p_bye_link_token)
 	return TRUE;
 }
 //////////////////////////////////////////////////////////////
+
+
+
 
 //////////////////////////////////////////////////////////////
 //begin interface between IPC and NVR
