@@ -26,6 +26,7 @@ int main(int argc,char *argv[])
 		struct st_rtsptype rtsptype;
 
 		sip_entity target;
+		sip_entity p2p_target;;
 
 		if(argc>1)
 		init_conf(argv[1]);
@@ -114,17 +115,21 @@ int main(int argc,char *argv[])
 					break;
 				case '6':
 					uac_key_nego();
+					if(user_type==NVR)
+					{
+						uas_eXosip_processEvent();
+					}
 					break;
 				case '7':
-					uac_key_distribute();
+					uac_key_distribute("user2",&p2p_target);
 					break;
 				case '8':
-					memset(&target,0,sizeof(target));
-					sprintf(target.ip, "%s", "192.168.17.127");
-					target.port=5063;
-					sprintf(target.username, "%s", "user2");
+					//memset(&target,0,sizeof(target));
+					//sprintf(target.ip, "%s", "192.168.17.127");
+					//target.port=5063;
+					//sprintf(target.username, "%s", "user2");
 
-					uac_token_exchange(&target);
+					uac_token_exchange(&p2p_target);
 					break;
 				case '9':
 					//video_invite();

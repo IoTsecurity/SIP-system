@@ -15,6 +15,9 @@ extern RegisterContext *RegisterCon;			/* 注册使用的上下文 */
 extern AuthActive *authactive_data;			/* 认证 */
 extern P2PLinkContext * P2PLinkContext_data;
 extern AccessAuthRequ *auth_request_packet_data;
+extern P2PCommContext *p2pcc;
+
+#define P2PAUTH_SUBJECT ("P2Pauthentication")
 
 #define CHARLEN 32
 
@@ -48,5 +51,6 @@ int P2PLinkContext_Conversion_C(RegisterContext *rc, P2PLinkContext *lc, enum De
 
 int P2PLinkContext_Conversion_S(RegisterContext *rc_IPC, RegisterContext *rc_NVR,
 		P2PLinkContext *lc_to_IPC, P2PLinkContext *lc_to_NVR);
+
 
 #endif /* SIP_COM_H_ */

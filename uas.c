@@ -1,6 +1,7 @@
 #include "csenn_eXosip2.h"
 #include <pthread.h>
 #include "dispatch.h"
+#include "uac.h"
 
 int handle_invite(eXosip_event_t * g_event)
 {
@@ -235,13 +236,39 @@ void uas_eXosip_processEvent(void)
 					if(subject!=NULL)
 					{
 						//printf("subject->hvalue:%s\n",subject->hvalue);
-						if(!strcmp(subject->hvalue,"KEY_DISTRIBUTE1"))
+						if(0&&!strcmp(subject->hvalue,"KEY_DISTRIBUTE1"))
 						{
 							//do the distribute1 step
 							osip_body_t *message_body = NULL;
 							osip_message_get_body(g_event->request, 0, &message_body);
 							printf("message_body->body:%s\n",message_body->body);
 							continue;
+						}
+						else if(!strcmp(subject->hvalue,"KEY_DISTRIBUTE2"))
+						{
+							if(HandleP2PKeyDistribution_request(g_event)<1)
+							{
+								printf("HandleP2PKeyDistribution_request error\n");
+								continue;
+							}
+						}
+						else if(!strcmp(subject->hvalue,P2PAUTH_SUBJECT))
+						{
+							sip_entity  target_sip;
+							getSipEntity(&target_sip,g_event->request);
+							eXosip_event_t *event;
+							if(send_authentication(target_sip)<1)
+							{
+								printf("send_authentication error\n");
+								continue;
+							}
+							if(handle_authentication(g_event->request)<1)
+							{
+								printf("handle_authentication error\n");
+								continue;
+							}
+
+
 						}
 					}
 

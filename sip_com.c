@@ -26,6 +26,7 @@ RegisterContext *RegisterCon;
 AuthActive *authactive_data;
 P2PLinkContext * P2PLinkContext_data;
 AccessAuthRequ *auth_request_packet_data;
+P2PCommContext *p2pcc;
 
 /*-----------------common function----------------------*/
 
@@ -364,3 +365,4 @@ int P2PLinkContext_Conversion_S(RegisterContext *rc_IPC, RegisterContext *rc_NVR
 
 	return 1;
 	}
+

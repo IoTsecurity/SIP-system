@@ -110,8 +110,6 @@ int uac_register()
 		//getNetInfo(NULL,mac);//printf("mac:%02x %02x %02x %02x %02x %02x",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
 
 		codeToChar(mac,sizeof(mac));
-		printf("mac:\n");
-		printfx(mac,sizeof(mac));
 		char mac_subject[20];
 		sprintf(mac_subject,"MAC:%s\n",mac);
 		osip_message_set_subject(reg,mac_subject);
@@ -160,7 +158,7 @@ int uac_register()
 						printf("no subject\n");
 						return 0;
 					}
-					printf("subject->hvalue:%s\n",subject->hvalue);
+					//printf("subject->hvalue:%s\n",subject->hvalue);
 					char mac[12];
 					memset(mac, 0, 12);
 					memcpy(mac,subject->hvalue,4);
@@ -177,7 +175,6 @@ int uac_register()
 					}
 
 					osip_message_get_body (je->response, 0, &body);
-					printf("body->length:%d\n",body->length);
 					if(!auth_active_packet_data)
 					{
 						free(auth_active_packet_data);
@@ -234,11 +231,11 @@ int uac_register()
 					}
 					codeToChar((char*)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
 
-					printf("length:%d",(sizeof(AuthActive)*2));
-					printf("length:%d",(sizeof(AccessAuthRequ)*2));
-					printf("length:%d",(sizeof(CertificateAuthRequ)*2));
-					printf("length:%d",sizeof(CertificateAuthResp)*2);
-					printf("length:%d",sizeof(AccessAuthResp)*2);
+					//printf("length:%d",(sizeof(AuthActive)*2));
+					//printf("length:%d",(sizeof(AccessAuthRequ)*2));
+					//printf("length:%d",(sizeof(CertificateAuthRequ)*2));
+					//printf("length:%d",sizeof(CertificateAuthResp)*2);
+					//printf("length:%d",sizeof(AccessAuthResp)*2);
 
 					osip_message_set_body(reg,(char*)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
 					decodeFromChar((char *)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
@@ -470,7 +467,7 @@ int uac_key_nego()
 			free(unicast_key_nego_requ_packet_c);
 			return 0;
 		}
-		memcpy(unicast_key_nego_requ_packet_c,body->body, body->length);
+		memcpy(unicast_key_nego_requ_packet_c,body->body, sizeof(UnicastKeyNegoRequ)*2);
 		decodeFromChar(unicast_key_nego_requ_packet_c,sizeof(UnicastKeyNegoRequ)*2);
 
 		if(HandleUnicastKeyNegoRequest(RegisterCon, unicast_key_nego_requ_packet_c)<1)
@@ -548,8 +545,6 @@ int uac_key_nego()
 			free(unicast_key_nego_confirm_packet_c);
 			return 0;
 		}
-		printf("body->length:%d",body->length);
-		printf("sizeof(UnicastKeyNegoConfirm)*2:%d",sizeof(UnicastKeyNegoConfirm)*2);
 		memcpy(unicast_key_nego_confirm_packet_c,body->body, sizeof(UnicastKeyNegoConfirm)*2);
 		//free(body);
 		decodeFromChar(unicast_key_nego_confirm_packet_c,sizeof(UnicastKeyNegoConfirm)*2);
@@ -565,7 +560,7 @@ int uac_key_nego()
 		free(unicast_key_nego_confirm_packet_c);
 		eXosip_event_free (g_event);
 		uac_bye(id);
-		return 1;
+		//return 1;
 	}
 	else
 	{
@@ -575,11 +570,34 @@ int uac_key_nego()
 		uac_bye(id);
 		return 0;
 	}
+	//if it is NVR , it will wait for IPC access
+	if(!strcmp(device_info.ipc_port,"5063"))
+	{
+		user_type=NVR;
+		//printf("user_type is NVR\n");
+	}
+	/*
+	if(user_type==NVR)
+	{
+		eXosip_event_t *event;
+		uac_waitfor(NULL, EXOSIP_MESSAGE_NEW,&event);
+		if(event==NULL)
+		{
+			printf("not the right response\n");
+			return 0;
+		}
+		if(HandleP2PKeyDistribution_request(event)<1)
+		{
+			printf("HandleP2PKeyDistribution_request error\n");
+			return 0;
+		}
+	}
+*/
 
 	return 1;
 }
 
-int uac_key_distribute()
+int uac_key_distribute(char *peer_id, sip_entity *sip_target)
 {
 	eXosip_event_t *g_event;
 	osip_header_t * subject;
@@ -588,23 +606,25 @@ int uac_key_distribute()
 
 	//key_nego 1
 	//snprintf(to, 50,"sip:%s@%s:%s",device_info.server_id,device_info.server_ip,device_info.server_port);
-	char peer_id[CHARLEN]="user2";
+	//char peer_id[CHARLEN]="user2";
 	snprintf(to, 50,"sip:%s@%s:%s",peer_id,device_info.server_ip,device_info.server_port);
 	snprintf(from, 50,"sip:%s@%s:%s",device_info.ipc_id,device_info.ipc_ip,device_info.ipc_port);
 	//uac_send_noSessionMessage(to,from, NULL,"peer userid:user2\n","KEY_DISTRIBUTE1\n");
 
 	sessionId id;
-	sip_entity target;
-	memset(&target,0,sizeof(target));
-	sprintf(target.ip, "%s", device_info.server_ip);
-	target.port=atoi(device_info.server_port);
-	sprintf(target.username, "%s", peer_id);
+	sip_entity sip_server;
+	memset(&sip_server,0,sizeof(sip_server));
+	sprintf(sip_server.ip, "%s", device_info.server_ip);
+	sip_server.port=atoi(device_info.server_port);
+	sprintf(sip_server.username, "%s", peer_id);
 
 	alter_message invite_message;
 	invite_message.body="peer userid:user2\n";
 	invite_message.content_type="text/code";
 	invite_message.subject="KEY_DISTRIBUTE1\n";
-	uac_sendInvite(&id,&target,&invite_message);
+	uac_sendInvite(&id,&sip_server,&invite_message);
+	/*------------------finish send the invite request----------------------*/
+
 
 	//printf("uac_sendInvite sucess\n");
 	uac_waitfor(&id,EXOSIP_CALL_ANSWERED,&g_event);
@@ -617,87 +637,40 @@ int uac_key_distribute()
 	id.did=g_event->did;
 	if(g_event->type!= EXOSIP_CALL_ANSWERED )//&& g_event->type!=EXOSIP_CALL_MESSAGE_ANSWERED)
 	{
-		//if(g_event->response )
-			//printf("g_event->response->message:\n");
-		//if(g_event->response->call_id)
-		//printf("g_event->response->call_id->number:%s\n",g_event->response->call_id->number);
 		printf("g_event->type:%d\n",g_event->type);
 		printf("g_event->cid:%d\n",g_event->cid);
 		printf("not the right response\n");
 		return 0;
 	}
+	/*------------------finish receive the  response----------------------*/
+
+
 	osip_message_t *ack = NULL;
 	eXosip_call_build_ack (id.did, &ack);
-	if(!eXosip_call_send_ack (id.did, ack))
+	if(eXosip_call_send_ack (id.did, ack))
 	{
-		printf("send_ack success\n");
-	}
-
-	osip_message_get_subject(g_event->response,0,&subject);
-	if(subject==NULL)
-	{
-		printf("no subject\n");
+		printf("send_ack error\n");
 		return 0;
 	}
-	printf("subject->hvalue:%s\n",subject->hvalue);
-	if(!strcmp(subject->hvalue,"KEY_DISTRIBUTE2"))
+	/*------------------finish send the ack response----------------------*/
+
+	if(HandleP2PKeyDistribution_request(g_event)<1)
 	{
-		osip_body_t *body;
-		osip_message_get_body (g_event->response, 0, &body);
-		P2PKeyDistribution *p2p_key_dist_packet_in_IPC=(P2PKeyDistribution *)malloc(sizeof(P2PKeyDistribution)*2);
-		if(body->length < sizeof(P2PKeyDistribution)*2)
-		{
-			printf("not valid length");
-			free(p2p_key_dist_packet_in_IPC);
-			return 0;
-		}
-		printf("body->length:%d",body->length);
-		printf("sizeof(P2PKeyDistribution)*2:%d",sizeof(P2PKeyDistribution)*2);
-		memcpy(p2p_key_dist_packet_in_IPC,body->body, sizeof(P2PKeyDistribution)*2);
-		//free(body);
-		decodeFromChar(p2p_key_dist_packet_in_IPC,sizeof(P2PKeyDistribution)*2);
-
-		//do something handle the KEY_DISTRIBUTE2
-
-		P2PLinkContext *lc_in_IPC=(P2PLinkContext *)malloc(sizeof(P2PLinkContext));
-
-		// 需要改进，因为可能是Client于NVR进行通信
-		if(user_type==IPC)
-		{printf("IPC\n");
-			P2PLinkContext_Conversion_C(RegisterCon, lc_in_IPC, NVR);
-		}
-		else if(user_type==NVR)
-		{printf("NVR\n");
-			P2PLinkContext_Conversion_C(RegisterCon, lc_in_IPC, IPC);
-		}
-		else
-			printf("user_type:%d",user_type);
-
-printf("lc->peer_id:%s",lc_in_IPC->peer_id);
-		if(HandleP2PKeyDistribution(lc_in_IPC, p2p_key_dist_packet_in_IPC)<1)
-		{
-			printf("HandleP2PKeyDistribution error\n");
-			return 0;
-		}
-
-
-		id.cid=g_event->cid;
-		id.did=g_event->did;
-		osip_message_t *ack = NULL;
-		printf("id.cid:%d id.did:%d",id.cid,id.did);
-		printf("KEY_DISTRIBUTE2 success\n");
-		eXosip_event_free (g_event);
-		uac_bye(id);
-	}
-	else
-	{
-		printf("not KEY_DISTRIBUTE2\n");
-		printf("g_event->cid:%d\n",g_event->cid);
-		eXosip_event_free (g_event);
-		uac_bye(id);
+		printf("HandleP2PKeyDistribution_request error\n");
 		return 0;
-
 	}
+	int LinkNum;
+	LinkNum=getSecureLinkNum(&Securelinks, p2pcc->peer_id);
+	if(LinkNum<0)
+	{
+		printf("No secure link information with %s!\n ", p2pcc->peer_id);
+	}
+
+	memcpy(sip_target->ip,Securelinks.links[LinkNum].partner_ip/*"192.168.17.127"*/
+			,sizeof(sip_target->ip));
+	sip_target->port=5063;//this will modify later
+	memcpy(sip_target->username,p2pcc->peer_id,sizeof(sip_target->username));
+
 	return 1;
 }
 
@@ -714,18 +687,18 @@ int uac_waitfor(sessionId* id, eXosip_event_type_t t,eXosip_event_t **event)
 		eXosip_unlock();
 		if ( g_event == NULL)
 		{
-			printf("NULL == g_event\n");
+			//printf("NULL == g_event\n");
 			continue;
 		}
 		if(g_event->request==NULL)
 		{
-			printf("g_event->request==NULL\n");
+			//printf("g_event->request==NULL\n");
 			continue;
 		}
 
 		if(id!=NULL && strcmp(id->call_id,g_event->request->call_id->number))
 		{
-			printf("id!=NULL &&\n");
+			//printf("id!=NULL &&\n");
 			continue;
 		}
 		if(g_event->type==EXOSIP_CALL_RINGING)
@@ -743,6 +716,13 @@ int uac_waitfor(sessionId* id, eXosip_event_type_t t,eXosip_event_t **event)
 			return 0;
 		}
 	}
+
+	if(event==NULL)
+	{
+		printf("no response\n\n");
+		return 0;
+	}
+
 	return 0;
 }
 
@@ -834,3 +814,175 @@ int init_conf(char * file)
 	return 0;
 	}
 
+int HandleP2PKeyDistribution_request(eXosip_event_t *g_event)
+{
+	osip_header_t * subject;
+	sessionId id;
+	osip_message_t *message;
+	if(g_event->response!=NULL)
+	{
+		message=g_event->response;
+	}
+	else if(g_event->request!=NULL)
+	{
+		message=g_event->request;
+	}
+	else
+	{
+		printf("no right response or request in HandleP2PKeyDistribution_request\n");
+		return 0;
+	}
+	osip_message_get_subject(message,0,&subject);
+	if(subject==NULL)
+	{
+		printf("no subject\n");
+		return 0;
+	}
+	printf("subject->hvalue:%s\n",subject->hvalue);
+	P2PLinkContext *lc;
+	if(!strcmp(subject->hvalue,"KEY_DISTRIBUTE2"))
+	{
+		osip_body_t *body;
+		osip_message_get_body (message, 0, &body);
+		P2PKeyDistribution *p2p_key_dist_packet=(P2PKeyDistribution *)malloc(sizeof(P2PKeyDistribution)*2);
+		if(body->length < sizeof(P2PKeyDistribution)*2)
+		{
+			printf("not valid length");
+			free(p2p_key_dist_packet);
+			return 0;
+		}
+		memcpy(p2p_key_dist_packet,body->body, sizeof(P2PKeyDistribution)*2);
+		//free(body);
+		decodeFromChar(p2p_key_dist_packet,sizeof(P2PKeyDistribution)*2);
+
+		//do something handle the KEY_DISTRIBUTE2
+
+		lc=(P2PLinkContext *)malloc(sizeof(P2PLinkContext));
+
+		// 需要改进，因为可能是Client于NVR进行通信
+		if(user_type==IPC)
+		{
+			P2PLinkContext_Conversion_C(RegisterCon, lc, NVR);
+		}
+		else if(user_type==NVR)
+		{
+			P2PLinkContext_Conversion_C(RegisterCon, lc, IPC);
+		}
+		else
+			printf("user_type:%d",user_type);
+
+		if(HandleP2PKeyDistribution(lc, p2p_key_dist_packet)<1)
+		{
+			printf("HandleP2PKeyDistribution error\n");
+			free(lc);
+			return 0;
+		}
+
+
+		id.cid=g_event->cid;
+		id.did=g_event->did;
+		osip_message_t *ack = NULL;
+		printf("id.cid:%d id.did:%d",id.cid,id.did);
+		printf("KEY_DISTRIBUTE2 success\n");
+		eXosip_event_free (g_event);
+		uac_bye(id);
+		free(lc);
+	}
+	else
+	{
+		printf("not KEY_DISTRIBUTE2\n");
+		printf("g_event->cid:%d\n",g_event->cid);
+		eXosip_event_free (g_event);
+		uac_bye(id);
+		return 0;
+
+	}
+	if(p2pcc!=NULL)
+	{
+		free(p2pcc);
+	}
+	p2pcc=(P2PCommContext *)malloc(sizeof(P2PCommContext));
+	P2PCommContext_Conversion(lc,p2pcc);
+	return 1;
+}
+
+int authenticationTokenExchange(sip_entity* to)
+{
+	eXosip_event_t *event;
+	if(send_authentication(to)<1)
+	{
+		printf("send_authentication error\n");
+		return 0;
+	}
+	if(uac_waitfor(NULL,EXOSIP_CALL_ANSWERED,&event)<1)
+	{
+		printf("uac_waitfor error\n");
+	}
+	if(handle_authentication(event->response)<1)
+	{
+		printf("handle_authentication error\n");
+		return 0;
+	}
+	return 1;
+	}
+
+int send_authentication(sip_entity* to)
+{
+	P2PAuthToken *p2p_auth_token=(P2PAuthToken *)malloc(sizeof(P2PAuthToken)*2);
+	if(ProcessP2PAuthToken(p2pcc, p2p_auth_token)<1)
+	{
+		printf("ProcessP2PAuthToken error\n");
+		return 0;
+	}
+	codeToChar(p2p_auth_token,sizeof(P2PAuthToken)*2);
+	alter_message p2pauth_message;
+	p2pauth_message.body=p2p_auth_token;
+	p2pauth_message.method_type="MESSAGE";
+	p2pauth_message.content_type="text/code";
+	p2pauth_message.subject=P2PAUTH_SUBJECT;
+	uac_send_noSessionMessage(&to, &p2pauth_message);
+
+	return 1;
+}
+int handle_authentication(osip_message_t *sip_message)
+{
+
+	osip_body_t *body;
+	osip_message_get_body (sip_message, 0, &body);//body
+	P2PAuthToken *p2p_auth_token_request=(P2PAuthToken *)malloc(sizeof(P2PAuthToken)*2);
+	if(body->length < sizeof(P2PAuthToken)*2)
+	{
+		printf("not valid length");
+		free(p2p_auth_token_request);
+		return 0;
+	}
+	memcpy(p2p_auth_token_request,body->body, sizeof(UnicastKeyNegoRequ)*2);
+	decodeFromChar(p2p_auth_token_request,sizeof(P2PAuthToken)*2);
+
+	if(HandleP2PAuthToken(p2pcc, p2p_auth_token_request)<1)
+	{
+		printf("ProcessP2PAuthToken error\n");
+		return 0;
+	}
+
+
+
+	return 1;
+}
+
+int reauthenticationTokenExchange(char *ip, char * port)
+{
+	return 1;
+	}
+
+int getSipEntity(sip_entity * target_sip, osip_message_t *sip_message)
+{
+	//sip_entity target_sip;
+	printf("event->request->from->url->host:%s",sip_message->from->url->host);
+	memcpy(target_sip->ip,sip_message->from->url->host,sizeof(target_sip->ip));
+	printf("event->request->from->url->port:%s",sip_message->from->url->port);
+	target_sip->port=atoi(sip_message->from->url->port);
+	printf("target_sip.username:%s",target_sip->username);
+	memcpy(target_sip->username,sip_message->from->url->username,sizeof(target_sip->username));
+	return 1;
+	}
