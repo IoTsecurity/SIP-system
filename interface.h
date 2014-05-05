@@ -248,6 +248,7 @@ EVP_PKEY * getprivkeyfromprivkeyfile(char *userID);
 
 int getLocalIdentity(identity *localIdentity, char *localUserID);
 
+
 /////////////////////////// filled by yaoyao ///////////////////////////////////
 /* Scene 1 :
  * Register and authentication process
@@ -497,6 +498,8 @@ typedef struct SecureLinks{
 	int nlinks;
 }SecureLinks;
 extern SecureLinks Securelinks;
+
+int getSecureLinkNum(const SecureLinks *securelinks, const char *id);
 
 typedef struct P2PLinkContext{
 	char self_id[MAXIDSTRING];

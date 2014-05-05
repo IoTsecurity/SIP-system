@@ -114,7 +114,7 @@ int send_to_peer(int new_server_socket, BYTE *send_buffer, int send_len)
 int recv_from_peer(int new_server_socket, BYTE *recv_buffer, int recv_len)
 {
 	int length = recv(new_server_socket,recv_buffer, recv_len, MSG_WAITALL);
-
+	
 	if (length < 0)
 	{
 		printf("Receive Data From Server Failed\n");
@@ -149,7 +149,7 @@ static int getKeyRingNum(const KeyBox *keybox, const char *id)
 	return -1;
 }
 
-static int getSecureLinkNum(const SecureLinks *securelinks, const char *id)
+int getSecureLinkNum(const SecureLinks *securelinks, const char *id)
 {
 	int i;
 	for(i=0; i < securelinks->nlinks; i++){
@@ -1287,7 +1287,7 @@ int ProcessWAPIProtocolCertAuthRequest(RegisterContext *rc,
 
 	certificate_auth_requ_packet->aesign.sign.length = sign_len;
 	memcpy(certificate_auth_requ_packet->aesign.sign.data,sign_value,sign_len);
-
+	
 	return TRUE;
 }
 
@@ -1301,7 +1301,7 @@ int talk_to_asu(CertificateAuthRequ *certificate_auth_requ_packet,CertificateAut
 	recv_from_peer(asu_socket, (BYTE *)certificate_auth_resp_packet, sizeof(CertificateAuthResp));
 	return 1;
 	//added by lvshichao 20140416
-}
+}	
 
 
 // step6: SIP Server - SIP UA(NVR)
@@ -1329,9 +1329,9 @@ int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
 	asupubkeyLen = i2d_PublicKey(asupubKey, &pTmp);
 
 	//验证ASU服务器对整个证书认证响应分组(除本字段外)的签名，检验该分组的完整性、验证该份组的发送源身份
-	//edited by lvshichao 20140416
+	//edited by lvshichao 20140416 
 	//certificate_auth_resp_packet->asusign.sign.data--->certificate_auth_resp_packet->cerauthrespasusign.sign.data
-	/*
+	/*  
 	if (verify_sign((BYTE *) certificate_auth_resp_packet,
 			sizeof(CertificateAuthResp) - sizeof(sign_attribute),
 			certificate_auth_resp_packet->asusign.sign.data,
@@ -1341,7 +1341,7 @@ int HandleProcessWAPIProtocolCertAuthResp(RegisterContext *rc,
 		EVP_PKEY_free(asupubKey);
 	}
 	*/
-
+	
 	if (verify_sign((BYTE *) certificate_auth_resp_packet,
 			sizeof(CertificateAuthResp) - sizeof(sign_attribute),
 			certificate_auth_resp_packet->cerauthrespasusign.sign.data,
