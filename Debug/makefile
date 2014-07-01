@@ -8,6 +8,7 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include secfiles/subdir.mk
 -include subdir.mk
 -include objects.mk
 
@@ -28,7 +29,7 @@ all: SIP-system
 SIP-system: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -L"/home/team/workspace/SIP-system" -L/usr/local/openssl/lib -o "SIP-system" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -L"/home/team/workspace/SIP-system" -L/usr/local/lib -L/usr/local/openssl/lib -o "SIP-system" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

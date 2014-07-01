@@ -29,26 +29,8 @@ int call_type;
 int invite_user_type;
 int invite_type;
 
-/*
-int interface_init()
-{
-	user_type=0;
-	call_type=0;
 
-	invite_user_type=0;
-	invite_type=0;
 
-	init_Contextconf(device_info.cfgFile);
-/*
-	uas_handle_invite_sdp=uas_handle_Playsdp;
-	uas_get_invite_sdp=uas_get_Playsdp;
-	uas_start_transport=uas_send_Playmedia;
-	uas_handle_Message=uas_handle_rtsp;
-	uas_stop_transport=uas_close_Playmedia;
-	/
-	//uas_get_info=uas_get_message;
-	return 1;
-}*/
 
 int uac_get_sdp(char *sdp_data)
 {
@@ -86,10 +68,29 @@ int uac_handle_sdp(char *sdp_data)
 	return 1;
 }
 
-int uac_start_media(char * peer_location)
+int uac_start_media(FILE **media_p, char * peer_location)
 {printf("uac_start_media:%s",peer_location);
+	char selfip[16];
+	char ipc_shell[1024];
+	memset(ipc_shell,0,1024);
 	if(user_type==USER_TYPE_IPC)
+	{
+		getNetInfo(selfip,NULL);
+		//FILE *fp;
+		char buffer[1024];
+		memset(buffer,'\0',sizeof(buffer));
+		sprintf(ipc_shell,"ffmpeg -i rtsp://%s:8557/PSIA/Streaming/"
+				"channels/2?videoCodecType=H.264 -vcodec copy -an -f h264 tcp://%s:10000",peer_location,selfip);
+		(*media_p)=popen(ipc_shell,"r");
+		if((*media_p)==NULL)
+		{
+			printf("start program error\n");
+		}
+		fgets(buffer,sizeof(buffer),(*media_p));
+		printf("结果:%s",buffer);
+		//pclose(fp);
 		;//uac_send_Transportmedia(peer_location);
+	}
 	else if(user_type==USER_TYPE_CLIENT)
 	{
 		if(call_type==CALL_TYPE_PLAY)
@@ -104,10 +105,13 @@ int uac_start_media(char * peer_location)
 	return 1;
 	}
 
-int uac_close_media()
+int uac_close_media(FILE *media_p)
 {
 	if(user_type==USER_TYPE_IPC)
+	{
+		pclose(media_p);
 		;//uac_close_Transportmedia();
+	}
 	else if(user_type==USER_TYPE_CLIENT)
 	{
 		if(call_type==CALL_TYPE_PLAY)

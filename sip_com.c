@@ -30,7 +30,7 @@ P2PCommContext *p2pcc;
 
 /*-----------------common function----------------------*/
 
-int get_conf_value( char *key_name, char *value,char *filename)
+int get_conf_value(const char *key_name, char *value, const char *filename)
 {
 	char * file=filename;//device_info.cfgFile;
     int res;
@@ -80,12 +80,12 @@ int get_conf_value( char *key_name, char *value,char *filename)
 		}
 		close(fd);
 		}else{
-		res = -1;
+		res = 0;
 	}
     return res;
 }
 
-int init_Contextconf(char * file)
+int init_Contextconf(const char * file)
 {
 	RegisterCon=(RegisterContext*)malloc(sizeof(RegisterContext));
 	if(RegisterCon==NULL)
@@ -112,12 +112,15 @@ int init_Contextconf(char * file)
 	    }
 	    	else if(strcmp(value,"CLIENT")==0)
 	    {
-	    	//Self_type=CLIENT;
+	    	Self_type=Client;
 	    	//user_type=USER_TYPE_CLIENT;
 	    }
 	    	else if(strcmp(value,"NVR")==0)
 	    {
 	    	Self_type=NVR;
+
+	    	//为了避免register 的一个认证bug，该bug于radius有关，现暂时增加这条语句
+	    	//Self_type=IPC;
 	    	//user_type=USER_TYPE_NVR;
 	    }
 
@@ -153,7 +156,7 @@ int init_Contextconf(char * file)
 	return 1;
 	}
 
-int codeToChar(char *data,int lenth)
+int codeToChar(char *data, const int lenth)
 {
 	int i,j;
 	i=lenth-1;
@@ -166,7 +169,7 @@ int codeToChar(char *data,int lenth)
 	return 1;
 }
 
-int decodeFromChar(char *data,int lenth)
+int decodeFromChar(char *data, const int lenth)
 {
 	int i,j;
 	i=1;
@@ -178,65 +181,71 @@ int decodeFromChar(char *data,int lenth)
 	return 1;
 }
 
-int getNetInfo(char* outip,char *outmac)
+int getNetInfo(char* outip, char *outmac)
 {
 	int i=0;
 	int sockfd;
-	struct ifconf ifconf;
+	struct ifconf ifconf2;
 	char buf[512];
 	struct ifreq *ifreq;
 	char* ip;
-	ifconf.ifc_len = 512;
-	ifconf.ifc_buf = buf;
+	ifconf2.ifc_len = 512;
+	ifconf2.ifc_buf = buf;
 
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0))<0)
 	{
 		return -1;
 	}
-	ioctl(sockfd, SIOCGIFCONF, &ifconf);
-
-	ifreq = (struct ifreq*)buf;
-	char mac_addr[50];
-	memcpy(mac_addr,(char *)ether_ntoa(ifreq->ifr_hwaddr.sa_data),strlen((char*)ether_ntoa(ifreq->ifr_hwaddr.sa_data)));
-
-	for(i=(ifconf.ifc_len/sizeof(struct ifreq)); i>0; i--)
+	if(!ioctl(sockfd, SIOCGIFCONF, &ifconf2))
 	{
-		//printf("name:%s ",ifreq->ifr_ifrn.ifrn_name);
-		ip = inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr);
-		//printf("mac:%s\n",inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_hwaddr))->sin_addr));
-		//printf("ip:%s\n",ip);
-		ifreq++;
-		/*if(strcmp(ip,"127.0.0.1")==0)
+
+		ifreq = (struct ifreq*)buf;
+		char mac_addr[50];
+		//printf("strlen((char*)ether_ntoa(ifreq->ifr_hwaddr.sa_data))):%d\n",strlen((char*)ether_ntoa(ifreq->ifr_hwaddr.sa_data)));
+		//memcpy(mac_addr,(char *)ether_ntoa(ifreq->ifr_hwaddr.sa_data),strlen((char*)ether_ntoa(ifreq->ifr_hwaddr.sa_data)));
+
+		for(i=(ifconf2.ifc_len/sizeof(struct ifreq)); i>0; i--)
 		{
+			//printf("name:%s ",ifreq->ifr_ifrn.ifrn_name);
+			ip = inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr);
+			//printf("mac:%s\n",inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_hwaddr))->sin_addr));
+			//printf("ip:%s\n",ip);
 			ifreq++;
-			continue;
-		}*/
-	}
-	int num;
-	num=1;
-	ifreq=(struct ifreq*)buf+num;
+			/*if(strcmp(ip,"127.0.0.1")==0)
+			{
+				ifreq++;
+				continue;
+			}*/
+		}
+		int num;
+		num=1;
+		ifreq=(struct ifreq*)buf+num;
 
-	if(outip!=NULL)
-	{
-		ip = inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr);
-		strcpy(outip,ip);
-	}
+		if(outip!=NULL)
+		{
+			ip = inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr);
+			strcpy(outip,ip);
+		}
 
-	if(outmac!=NULL)
-	{
-		struct ifreq struReq;
-		strncpy(struReq.ifr_name, ifreq->ifr_ifrn.ifrn_name, sizeof(struReq.ifr_name));
-		ioctl(sockfd,SIOCGIFHWADDR,&struReq);
-		memset(mac_addr,0,50);
-		memcpy(mac_addr,(char *)ether_ntoa(struReq.ifr_hwaddr.sa_data),strlen((char*)ether_ntoa(struReq.ifr_hwaddr.sa_data)));
-		mac_stox(outmac,mac_addr);
+		if(outmac!=NULL)
+		{
+			struct ifreq struReq;
+			strncpy(struReq.ifr_name, ifreq->ifr_ifrn.ifrn_name, sizeof(struReq.ifr_name));
+			//printf("struReq.ifr_name:%s",struReq.ifr_name);
+			ioctl(sockfd,SIOCGIFHWADDR,&struReq);
+			memset(mac_addr,0,50);
+			//printf("(char*)ether_ntoa(struReq.ifr_hwaddr.sa_data)):%s",(char*)ether_ntoa(struReq.ifr_hwaddr.sa_data));
+			//memcpy(mac_addr,(char *)ether_ntoa(struReq.ifr_hwaddr.sa_data),strlen((char*)ether_ntoa(struReq.ifr_hwaddr.sa_data)));
+			//mac_stox(outmac,mac_addr);
+			memcpy(outmac,(char *)struReq.ifr_hwaddr.sa_data,MAC_LEN);
+		}
+		close(sockfd);
 	}
-	close(sockfd);
 	return 1;
 
 }
 
-int mac_stox(char *x,char * s)
+int mac_stox(char *x, const char * s)
 {
 	int i,j,k;
 	char d[6];
@@ -284,7 +293,7 @@ int mac_stox(char *x,char * s)
 	return 1;
 }
 
-int printfx(unsigned char *p, int len)
+int printfx(const unsigned char *p, const int len)
 {
 	int i;
 	for(i=0;i<len;i++)
@@ -294,7 +303,7 @@ int printfx(unsigned char *p, int len)
 	return 1;
 	}
 
-int P2PCommContext_Conversion(P2PLinkContext *lc,P2PCommContext *cc)
+int P2PCommContext_Conversion(const P2PLinkContext *lc,P2PCommContext *cc)
 {
 	memcpy(cc->self_id,lc->self_id,MAXIDSTRING);
 	memcpy(&cc->self_MACaddr,&lc->self_MACaddr,sizeof(cc->self_MACaddr));
@@ -306,7 +315,7 @@ int P2PCommContext_Conversion(P2PLinkContext *lc,P2PCommContext *cc)
 	return 1;
 }
 
-int P2PLinkContext_Conversion_C(RegisterContext *rc, P2PLinkContext *lc, enum DeviceType target_type)
+int P2PLinkContext_Conversion_C(const RegisterContext *rc, P2PLinkContext *lc, const  enum DeviceType target_type)
 {
 	memcpy(lc->self_id,rc->self_id,MAXIDSTRING);
 	memcpy(lc->self_MACaddr.macaddr,rc->self_MACaddr.macaddr,sizeof(lc->self_MACaddr.macaddr));
@@ -323,10 +332,21 @@ int P2PLinkContext_Conversion_C(RegisterContext *rc, P2PLinkContext *lc, enum De
 
 	lc->target_type=target_type;
 
+
+	/*-------------后续需要修改--------------*/
+	if(target_type==NVR)
+	{
+		memcpy(lc->target_id,"user2",sizeof(lc->target_id));
+	}
+	else if(target_type==IPC)
+	{
+		memcpy(lc->target_id,"11111",sizeof(lc->target_id));
+	}
+
 	return 1;
 	}
 
-int P2PLinkContext_Conversion_S(RegisterContext *rc_IPC, RegisterContext *rc_NVR, P2PLinkContext *lc_to_IPC, P2PLinkContext *lc_to_NVR)
+int P2PLinkContext_Conversion_S(const RegisterContext *rc_IPC, const RegisterContext *rc_NVR, P2PLinkContext *lc_to_IPC, P2PLinkContext *lc_to_NVR)
 {
 	memcpy(lc_to_IPC->self_id,rc_IPC->self_id,MAXIDSTRING);
 	memcpy(lc_to_IPC->self_MACaddr.macaddr,rc_IPC->self_MACaddr.macaddr,sizeof(lc_to_IPC->self_MACaddr.macaddr));

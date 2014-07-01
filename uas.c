@@ -1,4 +1,4 @@
-#include "csenn_eXosip2.h"
+//#include "csenn_eXosip2.h"
 #include <pthread.h>
 #include "dispatch.h"
 #include "uac.h"
@@ -153,6 +153,23 @@ int handle_bye(eXosip_event_t * g_event)
 	return 0;
 }
 
+int uas_token_exchange(eXosip_event_t * g_event, TokenType tokentype_)
+{
+	sip_entity  target_sip;
+	getSipEntity(&target_sip,g_event->request);
+	if(send_token(&target_sip,tokentype_)<1)
+	{
+		printf("send_authentication error\n");
+		return 0;
+	}
+	if(handle_token(g_event->request,tokentype_)<1)
+	{
+		printf("handle_authentication error\n");
+		return 0;
+	}
+	return 1;
+	}
+
 /*解析INVITE的SDP消息体，同时保存全局INVITE连接ID和全局会话ID*/
 void uas_eXosip_paraseInviteBody(eXosip_event_t *p_event)
 {
@@ -231,12 +248,13 @@ void uas_eXosip_processEvent(void)
 					/*网络设备信息查询*/
 					/*设备视音频文件检索*/
 					printf("<MSG_IS_MESSAGE>\r\n");
+
 					osip_header_t * subject;
 					osip_message_get_subject(g_event->request,0,&subject);
 					if(subject!=NULL)
 					{
 						//printf("subject->hvalue:%s\n",subject->hvalue);
-						if(0&&!strcmp(subject->hvalue,"KEY_DISTRIBUTE1"))
+						if(!strcmp(subject->hvalue,"KEY_DISTRIBUTE1"))
 						{
 							//do the distribute1 step
 							osip_body_t *message_body = NULL;
@@ -254,24 +272,37 @@ void uas_eXosip_processEvent(void)
 						}
 						else if(!strcmp(subject->hvalue,P2PAUTH_SUBJECT))
 						{
-							sip_entity  target_sip;
-							getSipEntity(&target_sip,g_event->request);
-							eXosip_event_t *event;
-							if(send_authentication(target_sip)<1)
+							if(uas_token_exchange(g_event, Auth)<1)
 							{
-								printf("send_authentication error\n");
+								printf("uas_token_exchange error\n");
 								continue;
 							}
-							if(handle_authentication(g_event->request)<1)
+						}
+						else if(!strcmp(subject->hvalue,P2PREAUTH_SUBJECT))
+						{
+							if(uas_token_exchange(g_event, Reauth)<1)
 							{
-								printf("handle_authentication error\n");
+								printf("uas_token_exchange error\n");
 								continue;
 							}
-
-
+						}
+						else if(!strcmp(subject->hvalue,P2PBYESESSION_SUBJECT))
+						{
+							if(uas_token_exchange(g_event, Byesession)<1)
+							{
+								printf("uas_token_exchange error\n");
+								continue;
+							}
+						}
+						else if(!strcmp(subject->hvalue,P2PBYELINK_SUBJECT))
+						{
+							if(uas_token_exchange(g_event, Byelink)<1)
+							{
+								printf("uas_token_exchange error\n");
+								continue;
+							}
 						}
 					}
-
 					eXosip_lock();
 					eXosip_message_build_answer(g_event->tid, 200, &g_answer);/*Build default Answer for request*/
 					eXosip_message_send_answer(g_event->tid, 200, g_answer);/*按照规则回复200OK*/
@@ -334,6 +365,9 @@ void uas_eXosip_processEvent(void)
 			default:
 			{
 				printf("\r\n<OTHER>\r\n");
+				if(EXOSIP_MESSAGE_NEW==g_event->type)
+					printf("EXOSIP_MESSAGE_NEW==g_event->type\n");
+				printf("EXOSIP_REGISTRATION_NEW:%d\n",EXOSIP_REGISTRATION_NEW);
 				printf("eXosip event type:%d\n", g_event->type);
 			}
 			break;

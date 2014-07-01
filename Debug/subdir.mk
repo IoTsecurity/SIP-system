@@ -4,29 +4,29 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../csenn_eXosip2.c \
 ../dispatch.c \
 ../interface.c \
 ../main.c \
 ../sip_com.c \
+../sm1.c \
 ../uac.c \
 ../uas.c 
 
 OBJS += \
-./csenn_eXosip2.o \
 ./dispatch.o \
 ./interface.o \
 ./main.o \
 ./sip_com.o \
+./sm1.o \
 ./uac.o \
 ./uas.o 
 
 C_DEPS += \
-./csenn_eXosip2.d \
 ./dispatch.d \
 ./interface.d \
 ./main.d \
 ./sip_com.d \
+./sm1.d \
 ./uac.d \
 ./uas.d 
 

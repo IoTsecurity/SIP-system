@@ -1776,7 +1776,16 @@ int HandleUnicastKeyNegoRequest(RegisterContext *rc, const UnicastKeyNegoRequ *u
 		memcpy(text+sizeof(rc->self_MACaddr.macaddr), rc->peer_MACaddr.macaddr, sizeof(rc->peer_MACaddr.macaddr));
 		hmac_sha256(text, textlen, Keybox.keyrings[getKeyRingNum(&Keybox, rc->peer_id)].MasterKey,
 				KEY_LEN, rc->MK_ID, SHA256_DIGEST_SIZE);
+		printf("text:\n");
+		printfx(text,textlen);
+		printf("Keybox.keyrings[getKeyRingNum(&Keybox, rc->peer_id)].MasterKey:\n");
+		printfx(Keybox.keyrings[getKeyRingNum(&Keybox, rc->peer_id)].MasterKey,KEY_LEN);
 		free(text);
+
+		printf("unicast_key_nego_requ_packet->MK_ID:\n");
+		printfx(unicast_key_nego_requ_packet->MK_ID,SHA256_DIGEST_SIZE);
+		printf("rc->MK_ID:\n");
+		printfx(rc->MK_ID,SHA256_DIGEST_SIZE);
 		if(memcmp(unicast_key_nego_requ_packet->MK_ID, rc->MK_ID, SHA256_DIGEST_SIZE)){
 			printf("ae's master key id verify failed.\n");
 			return FALSE;
@@ -2286,14 +2295,14 @@ int HandleP2PKeyDistribution(P2PLinkContext *lc, const P2PKeyDistribution *p2p_k
 			Securelinks.nlinks++;
 		}
 	}
-	if(Self_type == IPC){
+	if(Self_type == IPC){printf("Self_type == IPC\n");
 		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
 		memcpy(Securelinks.links[i].CK, p2p_key_dist_packet->secure_link_info+KEY_LEN, KEY_LEN);
 		memcpy(&Securelinks.links[i].partner_ip, p2p_key_dist_packet->secure_link_info+2*KEY_LEN, MAXIDSTRING);
 		memcpy(&Securelinks.links[i].ports, p2p_key_dist_packet->secure_link_info+2*KEY_LEN+MAXIDSTRING, sizeof(Ports));
 	    // get NVR MAC addr
 	    memcpy(lc->target_MACaddr.macaddr, p2p_key_dist_packet->addid.mac2, MAC_LEN);
-	}else if(Self_type == NVR){
+	}else if(Self_type == NVR){printf("Self_type == NVR\n");
 		memcpy(Securelinks.links[i].IK, p2p_key_dist_packet->secure_link_info, KEY_LEN);
 		memset(Securelinks.links[i].CK, 0, KEY_LEN);
 		memcpy(&Securelinks.links[i].partner_ip, p2p_key_dist_packet->secure_link_info+KEY_LEN, MAXIDSTRING);
@@ -2400,13 +2409,13 @@ int HandleP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token)
 	int textlen = 2*MAC_LEN + 2*RAND_LEN + strlen(tempstring);
 	unsigned char *output = malloc(outputlen);
 	unsigned char *text = malloc(textlen);
-	if(cc->peer_type == NVR){
+	if(cc->peer_type == NVR){printf("cc->peer_type == NVR\n");
 		memcpy(text, cc->self_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+MAC_LEN, cc->peer_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+2*MAC_LEN, cc->self_randnum, RAND_LEN);
 		memcpy(text+2*MAC_LEN+RAND_LEN, cc->peer_randnum, RAND_LEN);
 		memcpy(text+2*MAC_LEN+2*RAND_LEN, tempstring, strlen(tempstring));
-	}else if(cc->peer_type == IPC){
+	}else if(cc->peer_type == IPC){printf("cc->peer_type == IPC\n");
 		memcpy(text, cc->peer_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+MAC_LEN, cc->self_MACaddr.macaddr, MAC_LEN);
 		memcpy(text+2*MAC_LEN, cc->peer_randnum, RAND_LEN);
@@ -2423,6 +2432,12 @@ int HandleP2PAuthToken(P2PCommContext *cc, P2PAuthToken *p2p_auth_token)
 	kd_hmac_sha256(text, textlen, Securelinks.links[i].IK,
 			KEY_LEN, output, outputlen);
 
+	printf("text:\n");
+	printfx(text,textlen);
+	printf("Securelinks.links[i].IK:\n");
+	printfx(Securelinks.links[i].IK,KEY_LEN);
+	printf("output:\n");
+	printfx(output,outputlen);
 	memcpy(Securelinks.links[i].reauth_IK, output, outputlen);
 	free(output);
 	free(text);
@@ -2470,6 +2485,8 @@ int ProcessP2PReauthToken(P2PCommContext *cc, P2PAuthToken *p2p_reauth_token)
 	gen_randnum((BYTE *)p2p_reauth_token->randnum, RAND_LEN);
 	memcpy(cc->self_randnum, p2p_reauth_token->randnum, RAND_LEN);
 
+	printf("Securelinks.links[i].reauth_IK:\n");
+	printfx(Securelinks.links[i].reauth_IK,SHA256_DIGEST_SIZE);
 	// fill digest
 	hmac_sha256((BYTE *)p2p_reauth_token, sizeof(P2PAuthToken)-sizeof(p2p_reauth_token->digest),
 			Securelinks.links[i].reauth_IK, SHA256_DIGEST_SIZE,

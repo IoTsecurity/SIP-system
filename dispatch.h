@@ -9,7 +9,7 @@
 #define DISPATCH_H_
 
 #include "interface.h"
-#include "csenn_eXosip2.h"
+//#include "csenn_eXosip2.h"
 #include "sip_com.h"
 
 //#define DATA_LEN 4096
@@ -35,6 +35,8 @@ extern int invite_type;
 #define INVITE_TYPE_PLAY 		1
 #define INVITE_TYPE_PLAYBACK 	2
 
+
+
 //init
 //int interface_init();
 
@@ -44,7 +46,7 @@ int uac_get_sdp(char *sdp_data);
 
 int uac_handle_sdp(char *sdp_data);
 
-int uac_start_media(char * peer_location);
+int uac_start_media(FILE **media_p, char * peer_location);
 
 int uac_close_media();
 
@@ -56,7 +58,7 @@ int uas_get_sdp(char *sdp_data);
 
 int uas_start_media(char * peer_location);
 
-int uas_close_media();
+int uac_close_media(FILE *media_p);
 
 //register
 
