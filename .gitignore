@@ -1,4 +1,4 @@
-Debug/
+/Debug
 !Debug/cert
 !Debug/private
 !Debug/uac2.cfg
