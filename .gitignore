@@ -1,1 +1,12 @@
-/Debug
+Debug/
+!Debug/cert
+!Debug/private
+!Debug/uac2.cfg
+!Debug/uas.cfg
+#*.d                  # 忽略所有 .d 扩展名的文件
+#*.o                  # 忽略所有 .o 扩展名的文件
+#*.so*                  # 忽略所有 .so* 扩展名的文件
+#!lib.a                # 但是 lib.a 不忽略，即时之前设置了忽略所有的 .a
+#/TODO            # 只忽略此目录下 TODO 文件，子目录的 TODO 不忽略 
+#build/               # 忽略所有的 build/ 目录下文件
+#doc/*.txt           # 忽略如 doc/notes.txt, 但是不忽略如 doc/server/arch.txt 

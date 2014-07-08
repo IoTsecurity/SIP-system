@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <wait.h>
 
+#pragma pack (4) //alignment with 4B
+
 #define HOME "./"
 const char *CAID = "0";
 
@@ -35,10 +37,11 @@ const char *CAID = "0";
 
 static int annotation = 2;  //1-lvshichao,2-yaoyao
 
-const time_t TimeThreshold = 120; // in seconds
+const _time_t TimeThreshold = 120; // in seconds
 enum DeviceType Self_type; // =IPC/SIPserver/NVR/Client
 KeyBox Keybox;
 SecureLinks Securelinks;
+
 
 //added by lvshichao 20140416 begin
 int asu_socket;
@@ -774,6 +777,8 @@ Others:      //
 
 *************************************************/
 
+
+
 void user_gen_cert_request(char *user_ID,char *username)
 {
 	X509_REQ *req;
@@ -1040,8 +1045,7 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 		return FALSE;
 	}
 
-	//verify auth active time
-    time_t  t;
+    _time_t  t;
     time(&t);
     if((t - auth_active_packet->authactivetime) > TimeThreshold){
     	return FALSE;

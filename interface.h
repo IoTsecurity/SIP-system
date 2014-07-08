@@ -326,6 +326,14 @@ typedef struct RegisterContext{
     BOOL key_nego_result;
 }RegisterContext;
 
+
+
+#ifdef __x86_64__
+#define _time_t unsigned long
+#else
+#define _time_t unsigned long long
+#endif
+
 // step2: SIP Server - SIP UA(NVR)
 /* WAI认证协议 鉴别激活分组 */
 typedef struct _auth_active
@@ -334,7 +342,7 @@ typedef struct _auth_active
     BYTE           flag;                                      /* 标志FLAG */
     BYTE           authidentify[RAND_LEN];                    /* 鉴别标识 */
 	BYTE		   aechallenge[RAND_LEN];
-	time_t         authactivetime;
+	_time_t         authactivetime;
 	identity       localasuidentity;                          /* 本地ASU的身份 */
 	ecdh_param     ecdhparam;                                 /* ECDH参数 */
     certificate    certificatestaae;                          /* STAae的证书 */
