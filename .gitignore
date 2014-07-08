@@ -1,5 +1,5 @@
 Debug/
-!/Debug/cert/
+#!/Debug/cert/
 !/Debug/private/
 #!Debug/uac2.cfg
 #!Debug/uas.cfg
