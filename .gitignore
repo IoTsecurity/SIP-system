@@ -1,6 +1,6 @@
 Debug/
-!Debug/cert/
-!Debug/private/
+!/Debug/cert/
+!/Debug/private/
 #!Debug/uac2.cfg
 #!Debug/uas.cfg
 #*.d                  # 忽略所有 .d 扩展名的文件
