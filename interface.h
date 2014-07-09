@@ -334,6 +334,8 @@ typedef struct RegisterContext{
 #define _time_t unsigned long long
 #endif
 
+#pragma pack (4) //alignment with 4B
+
 // step2: SIP Server - SIP UA(NVR)
 /* WAI认证协议 鉴别激活分组 */
 typedef struct _auth_active

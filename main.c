@@ -5,7 +5,6 @@
  *      Author: jzw
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,6 +16,16 @@
 
 int main(int argc,char *argv[])
 {
+	AuthActive p;
+	printf("sizeof(AuthActive):%d\n",sizeof(AuthActive));
+	printf("p.authidentify-&(p.flag):%d\n",p.authidentify-&(p.flag));
+	printf("p.aechallenge-p.authidentify:%d\n",p.aechallenge-p.authidentify);
+	printf("(BYTE*)&(p.authactivetime)-p.aechallenge:%d\n",(BYTE*)&(p.authactivetime)-p.aechallenge);
+	printf("(BYTE*)&(p.localasuidentity)-(BYTE*)&(p.authactivetime):%d\n",(BYTE*)&(p.localasuidentity)-(BYTE*)&(p.authactivetime));
+	printf("(BYTE*)&(p.ecdhparam)-(BYTE*)&(p.localasuidentity):%d\n",(BYTE*)&(p.ecdhparam)-(BYTE*)&(p.localasuidentity));
+	printf("(BYTE*)&(p.certificatestaae)-(BYTE*)&(p.ecdhparam):%d\n",(BYTE*)&(p.certificatestaae)-(BYTE*)&(p.ecdhparam));
+	printf("(BYTE*)&(p.aesign)-(BYTE*)&(p.certificatestaae):%d\n",(BYTE*)&(p.aesign)-(BYTE*)&(p.certificatestaae));
+
 		sessionId inviteId;
 		char send_sdp_data[1024];
 		char recieve_sdp_data[1024];
