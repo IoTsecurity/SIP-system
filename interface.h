@@ -326,8 +326,6 @@ typedef struct RegisterContext{
     BOOL key_nego_result;
 }RegisterContext;
 
-
-
 #ifdef __x86_64__
 #define _time_t unsigned long
 #else

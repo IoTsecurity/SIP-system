@@ -29,7 +29,7 @@ all: SIP-system
 SIP-system: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -L"/home/team/workspace/SIP-system" -L/usr/local/lib -L/usr/local/openssl/lib -o "SIP-system" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -L/usr/local/lib -L/usr/local/openssl/lib -o "SIP-system" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
