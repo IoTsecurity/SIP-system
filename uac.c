@@ -244,6 +244,7 @@ int uac_init(const char *conf)
 	invite_user_type=0;
 	invite_type=0;
 
+	RegisterCon=(RegisterContext*)malloc(sizeof(RegisterContext));
 	init_Contextconf(device_info.cfgFile);		//对注册上下文结构的初始化，在opensips中它同样存在
 
 	csenn_eXosip_launch();
@@ -401,9 +402,10 @@ int uac_register()
 						printf("body->length is not enough");
 						return 0;
 					}
-					auth_active_packet_data=(AuthActive *)malloc (body->length*sizeof(char));
-					memcpy(auth_active_packet_data,body->body, body->length);
-					decodeFromChar((char*)auth_active_packet_data,body->length);
+					auth_active_packet_data=(AuthActive *)malloc (sizeof(AuthActive)*2);//;body->length*sizeof(char));
+					memset(auth_active_packet_data,0,sizeof(AuthActive)*2);
+					memcpy(auth_active_packet_data,body->body, sizeof(AuthActive)*2);
+					decodeFromChar((char*)auth_active_packet_data,sizeof(AuthActive)*2);
 					if(!HandleWAPIProtocolAuthActive(RegisterCon,auth_active_packet_data))
 					{
 						printf("HandleWAPIProtocolAuthActive error\n");
@@ -425,16 +427,20 @@ int uac_register()
 					reg = NULL;
 					/*----------step 3-------------发送携带认证信息的注册请求----------------------*/
 					eXosip_lock();
-					eXosip_clear_authentication_info();/*清除认证信息*/
-					eXosip_add_authentication_info(device_info.ipc_id, device_info.ipc_id, device_info.ipc_pwd, "MD5", NULL);/*添加主叫用户的认证信息*/
-					eXosip_register_build_register(je->rid, expires, &reg);
+					int return_num;
 
-					if(auth_request_packet_data!=NULL)
-					{
+					return_num=eXosip_clear_authentication_info();/*清除认证信息*/
+					printf("return_num:%d\n",return_num);
+					return_num=eXosip_add_authentication_info(device_info.ipc_id, device_info.ipc_id, device_info.ipc_pwd, "MD5", NULL);/*添加主叫用户的认证信息*/
+					printf("return_num:%d\n",return_num);
+					printf("je->rid:%d expires:%d return num:%d\n",je->rid,expires,eXosip_register_build_register(je->rid, expires, &reg));
 
-						free(auth_request_packet_data);
-						auth_request_packet_data=NULL;
-					}
+					//if(auth_request_packet_data!=NULL)
+					//{
+
+						//free(auth_request_packet_data);
+						//auth_request_packet_data=NULL;
+					//}
 
 					auth_request_packet_data=(AccessAuthRequ*)malloc(sizeof(AccessAuthRequ)*2);
 
@@ -452,12 +458,17 @@ int uac_register()
 					//printf("length:%d",(sizeof(CertificateAuthRequ)*2));
 					//printf("length:%d",sizeof(CertificateAuthResp)*2);
 					//printf("length:%d",sizeof(AccessAuthResp)*2);
-
-					osip_message_set_body(reg,(char*)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
-					decodeFromChar((char *)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
-
+					printf("111\n");
+					if(reg==NULL)
+					{
+						printf("reg==NULL\n");
+					}
+					osip_message_set_body(reg,(char*)auth_request_packet_data,sizeof(AccessAuthRequ)*2);printf("222\n");
+					printf("333\n");
+					printf("je->rid:%d\n",je->rid);printf("444\n");
 					ret = eXosip_register_send_register(je->rid, reg);
 					eXosip_unlock();
+					decodeFromChar((char *)auth_request_packet_data,sizeof(AccessAuthRequ)*2);
 					if (0 != ret)
 					{
 						printf("eXosip_register_send_register authorization error!\r\n");
@@ -465,25 +476,43 @@ int uac_register()
 					}
 					printf("eXosip_register_send_register authorization success!\r\n");
 					eXosip_event_free (je);
+					//free(auth_active_packet_data);
+printf("end\n");
 				}
 				else/*真正的注册失败*/
 				{
 					printf("EXOSIP_REGISTRATION_FAILURE error!\r\n");
+					eXosip_event_free (je);
 					return -1;
 					//goto retry;/*重新注册*/
 				}
 			}
 			else if (EXOSIP_REGISTRATION_SUCCESS == je->type)
-			{
+			{printf("recieve EXOSIP_REGISTRATION_SUCCESS\n");
 				/*---------step 6-------------收到服务器返回的注册成功--------------------------------*/
 
 				AccessAuthResp * access_auth_resp_data;
 				osip_body_t *body;
 				osip_message_get_body (je->response, 0, &body);
+				if(body==NULL)
+				{
+					printf("body==NULL\n");
+					return 0;
+				}
+				if( body->length<sizeof(AccessAuthResp)*2)
+				{
+					printf("message length is too short:%d\n",body->length);
+					return 0;
+				}
 				access_auth_resp_data=(AccessAuthResp *)malloc (body->length*sizeof(char));
 				memcpy(access_auth_resp_data,body->body, body->length);
+
 				decodeFromChar((char*)access_auth_resp_data,sizeof(AccessAuthResp)*2);
 
+				if(auth_request_packet_data==NULL)
+				{
+					printf("auth_request_packet_data = NULL\n");
+				}
 				if(HandleWAPIProtocolAccessAuthResp(RegisterCon,auth_request_packet_data,access_auth_resp_data)<1)
 				{
 					printf("HandleWAPIProtocolAccessAuthResp error\n");
@@ -502,9 +531,11 @@ int uac_register()
 
 				*/
 				eXosip_event_free (je);
+				free(auth_request_packet_data);
+				free(access_auth_resp_data);
+				return 1;
 				break;
 			}
-
 		}
 
 		return 0;
@@ -864,6 +895,7 @@ int uac_key_nego()
 		{
 			printf("not valid length");
 			free(unicast_key_nego_confirm_packet_c);
+			eXosip_event_free (g_event);
 			return 0;
 		}
 		memcpy(unicast_key_nego_confirm_packet_c,body->body, sizeof(UnicastKeyNegoConfirm)*2);
@@ -874,6 +906,7 @@ int uac_key_nego()
 		{
 			printf("HandleUnicastKeyNegoConfirm error\n");
 			free(unicast_key_nego_confirm_packet_c);
+			eXosip_event_free (g_event);
 			return 0;
 		}
 
@@ -1091,6 +1124,7 @@ int HandleP2PKeyDistribution_request(const eXosip_event_t *g_event)
 		p2pcc=(P2PCommContext *)malloc(sizeof(P2PCommContext));
 		P2PCommContext_Conversion(lc,p2pcc);
 		free(lc);
+		free(p2p_key_dist_packet);
 		return 1;
 	}
 	else
@@ -1125,7 +1159,7 @@ int uac_token_exchange(const sip_entity* to,const TokenType toketype_)
 	eXosip_message_build_answer(event->tid, 200, &g_answer);/*Build default Answer for request*/
 	eXosip_message_send_answer(event->tid, 200, g_answer);/*按照规则回复200OK*/
 	eXosip_unlock();
-
+	eXosip_event_free (event);
 	printf("uac_token_exchange-----finished\n");
 	return 1;
 	}
@@ -1155,12 +1189,14 @@ int send_token(const sip_entity* to, const TokenType toketype_)
 		break;
 	default:
 		printf("TokenType error\n");
+		free(token);
 		return 0;
 		break;
 	}
 	if(i<1)
 	{
 		printf("ProcessP2PAuthToken error\n");
+		free(token);
 		return 0;
 	}
 	codeToChar(token,sizeof(P2PAuthToken)*2);
@@ -1171,6 +1207,7 @@ int send_token(const sip_entity* to, const TokenType toketype_)
 	p2pauth_message.content_type=CONTENT_CODE;
 	p2pauth_message.subject=subject;
 	uac_send_noSessionMessage(to, &p2pauth_message);
+	free(token);
 	return 1;
 }
 int handle_token(const osip_message_t *sip_message, const TokenType toketype_)
@@ -1204,15 +1241,17 @@ int handle_token(const osip_message_t *sip_message, const TokenType toketype_)
 		break;
 	default:
 		printf("TokenType error\n");
+		free(token_request);
 		return 0;
 		break;
 	}
 	if(i<1)
 	{
 		printf("ProcessP2PAuthToken error\n");
+		free(token_request);
 		return 0;
 	}
-
+	free(token_request);
 	return 1;
 }
 

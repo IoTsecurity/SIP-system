@@ -1079,7 +1079,7 @@ int HandleWAPIProtocolAuthActive(RegisterContext *rc, AuthActive *auth_active_pa
 int ProcessWAPIProtocolAccessAuthRequest(RegisterContext *rc, AuthActive *auth_active_packet,
 		AccessAuthRequ *access_auth_requ_packet)
 {
-		printf("\n[step3: SIP UA(NVR) - SIP Server] In HandleWAPIProtocolAccessAuthRequest:\n");
+		printf("\n[step3: SIP UA(NVR) - SIP Server] In ProcessWAPIProtocolAccessAuthRequest:\n");
 
 		//fill flag
 		printf("fill flag:\n");

@@ -35,7 +35,7 @@ SIP-system: $(OBJS) $(USER_OBJS)
 
 # Other Targets
 clean:
-	-$(RM) $(OBJS)$(C_DEPS)$(EXECUTABLES) SIP-system
+	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) SIP-system
 	-@echo ' '
 
 .PHONY: all clean dependents

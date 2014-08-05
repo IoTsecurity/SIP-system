@@ -22,15 +22,15 @@
 #include<arpa/inet.h>
 #include<netdb.h>
 
-RegisterContext *RegisterCon;
-AuthActive *authactive_data;
-P2PLinkContext * P2PLinkContext_data;
-AccessAuthRequ *auth_request_packet_data;
-P2PCommContext *p2pcc;
+RegisterContext *RegisterCon=NULL;
+AuthActive *authactive_data=NULL;
+P2PLinkContext * P2PLinkContext_data=NULL;
+AccessAuthRequ *auth_request_packet_data=NULL;  	// used by SIPUA
+P2PCommContext *p2pcc=NULL;							// used by SIPUA
 
 /*-----------------common function----------------------*/
 
-int get_conf_value(const char *key_name, char *value, const char *filename)
+int get_conf_value( const char *key_name, char *value, const char *filename)
 {
 	char * file=filename;//device_info.cfgFile;
     int res;
@@ -87,7 +87,7 @@ int get_conf_value(const char *key_name, char *value, const char *filename)
 
 int init_Contextconf(const char * file)
 {
-	RegisterCon=(RegisterContext*)malloc(sizeof(RegisterContext));
+
 	if(RegisterCon==NULL)
 	{
 		printf("malloc error\n");
@@ -156,7 +156,7 @@ int init_Contextconf(const char * file)
 	return 1;
 	}
 
-int codeToChar(char *data, const int lenth)
+int codeToChar(char *data,const int lenth)
 {
 	int i,j;
 	i=lenth-1;
@@ -169,7 +169,7 @@ int codeToChar(char *data, const int lenth)
 	return 1;
 }
 
-int decodeFromChar(char *data, const int lenth)
+int decodeFromChar(char *data,const int lenth)
 {
 	int i,j;
 	i=1;
@@ -181,22 +181,22 @@ int decodeFromChar(char *data, const int lenth)
 	return 1;
 }
 
-int getNetInfo(char* outip, char *outmac)
+int getNetInfo(char* outip,char *outmac)
 {
 	int i=0;
 	int sockfd;
-	struct ifconf ifconf2;
+	struct ifconf ifconf;
 	char buf[512];
 	struct ifreq *ifreq;
 	char* ip;
-	ifconf2.ifc_len = 512;
-	ifconf2.ifc_buf = buf;
+	ifconf.ifc_len = 512;
+	ifconf.ifc_buf = buf;
 
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0))<0)
 	{
 		return -1;
 	}
-	if(!ioctl(sockfd, SIOCGIFCONF, &ifconf2))
+	if(!ioctl(sockfd, SIOCGIFCONF, &ifconf))
 	{
 
 		ifreq = (struct ifreq*)buf;
@@ -204,7 +204,7 @@ int getNetInfo(char* outip, char *outmac)
 		//printf("strlen((char*)ether_ntoa(ifreq->ifr_hwaddr.sa_data))):%d\n",strlen((char*)ether_ntoa(ifreq->ifr_hwaddr.sa_data)));
 		//memcpy(mac_addr,(char *)ether_ntoa(ifreq->ifr_hwaddr.sa_data),strlen((char*)ether_ntoa(ifreq->ifr_hwaddr.sa_data)));
 
-		for(i=(ifconf2.ifc_len/sizeof(struct ifreq)); i>0; i--)
+		for(i=(ifconf.ifc_len/sizeof(struct ifreq)); i>0; i--)
 		{
 			//printf("name:%s ",ifreq->ifr_ifrn.ifrn_name);
 			ip = inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr);
@@ -346,7 +346,8 @@ int P2PLinkContext_Conversion_C(const RegisterContext *rc, P2PLinkContext *lc, c
 	return 1;
 	}
 
-int P2PLinkContext_Conversion_S(const RegisterContext *rc_IPC, const RegisterContext *rc_NVR, P2PLinkContext *lc_to_IPC, P2PLinkContext *lc_to_NVR)
+int P2PLinkContext_Conversion_S(const RegisterContext *rc_IPC, const RegisterContext *rc_NVR,
+		P2PLinkContext *lc_to_IPC, P2PLinkContext *lc_to_NVR)
 {
 	memcpy(lc_to_IPC->self_id,rc_IPC->self_id,MAXIDSTRING);
 	memcpy(lc_to_IPC->self_MACaddr.macaddr,rc_IPC->self_MACaddr.macaddr,sizeof(lc_to_IPC->self_MACaddr.macaddr));
@@ -377,7 +378,6 @@ int P2PLinkContext_Conversion_S(const RegisterContext *rc_IPC, const RegisterCon
 	lc_to_NVR->target_type=IPC;
 	memcpy(lc_to_NVR->target_MACaddr.macaddr,rc_IPC->peer_MACaddr.macaddr,sizeof(lc_to_NVR->target_MACaddr.macaddr));
 	memcpy(lc_to_NVR->target_ip,rc_IPC->peer_ip,MAXIDSTRING);
-
 	lc_to_NVR->target_ports.rtp_send=0;
 	lc_to_NVR->target_ports.rtcp_send=0;
 	lc_to_NVR->target_ports.rtp_recv=0;
